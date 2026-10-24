@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "verify": "pnpm test && pnpm build && pnpm test:rust"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",

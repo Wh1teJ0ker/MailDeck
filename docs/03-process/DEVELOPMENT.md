@@ -20,11 +20,17 @@
 - main 始终保持可构建、可运行。
 - 提交信息使用 Conventional Commits：`feat` / `fix` / `docs` / `refactor` / `test` / `chore`，格式 `类型(范围): 描述`，例如 `feat(sync): UIDVALIDITY 变化时重建索引`。
 
-## 3. 测试策略
+## 3. 测试策略(本地执行)
 
 **硬性规则：先写完全部测试文件，再写实现代码；测试与源码完全分离，源码文件内不写内嵌测试（Rust 不用 `#[cfg(test)]`，前端不用同文件 `*.test.tsx`）。**
 
-测试文件固定放在独立目录，与源码目录分开：
+**测试与构建检查全部在本地完成,远程不跑 CI**(GitHub 只保留 tag → Release 构建推送)。合入前运行一键校验:
+
+```bash
+pnpm verify   # = 前端 Vitest + 前端构建(tsc+vite) + Rust cargo test
+```
+
+测试文件固定放在独立目录,与源码目录分开:
 
 | 端 | 测试目录 | 说明 |
 | --- | --- | --- |
@@ -43,10 +49,10 @@
 1. ROADMAP 当前版本验收门槛全部通过。
 2. 更新日志定稿：`04-changelog/v<版本号>.md` 补发布日期；随后新建下一开发版本的日志文件，并在 `04-changelog/README.md` 版本目录登记。
 3. 版本号同步三处并保持一致：`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`package.json`。
-4. 提交后打 tag 并推送：`git tag v<版本号> && git push origin v<版本号>`。
-5. GitHub Actions「Release」流水线自动构建 macOS（Apple Silicon / Intel）dmg，创建 GitHub Release 并附安装包与 `latest.json` 在线更新源（签名私钥存于仓库 Secrets `TAURI_SIGNING_PRIVATE_KEY`）。
-6. Release 页核对产物；应用内「设置 → 检查更新」验证在线更新链路。
-7. CI（main push / PR）自动运行：前端 build + test（ubuntu）、Rust test（macOS），全绿才允许合入的约定依赖分支保护按需开启。
+4. **本地一键校验 `pnpm verify` 全绿**（前端测试 + 前端构建 + Rust 测试）。
+5. 提交后打 tag 并推送：`git tag v<版本号> && git push origin v<版本号>`。
+6. GitHub Actions「Release」流水线自动构建 macOS（Apple Silicon / Intel）dmg，创建 GitHub Release 并附安装包与 `latest.json` 在线更新源（签名私钥存于仓库 Secrets `TAURI_SIGNING_PRIVATE_KEY`）。
+7. Release 页核对产物；应用内「设置 → 检查更新」验证在线更新链路。
 
 ## 5. 文档同步规则（合入前完成）
 
