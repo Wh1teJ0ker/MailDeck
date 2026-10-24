@@ -25,7 +25,7 @@ rustls-pki-types = "1"
 mail-parser = "0.9"
 base64 = "0.22"
 ammonia = "4"
-keyring = { version = "3", features = ["apple-native"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 thiserror = "2"
 anyhow = "1"
