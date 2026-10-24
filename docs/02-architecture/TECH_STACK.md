@@ -114,12 +114,12 @@
 
 | 项目 | 决定 |
 | --- | --- |
-| 首发操作系统 | macOS，优先 Apple Silicon；是否同时出 Universal 构建在 M4 评估 |
-| 后续平台 | Windows、Linux 按需后置，不承诺时间 |
-| 凭证后端 | macOS Keychain（keyring crate） |
-| 打包 | Tauri bundler，产出 .app 与 .dmg |
-| 签名与公证 | 方向：Apple Developer ID 签名 + notarization；是否购买开发者账号在 M4 决定，未购买前本机构建自用、不做外发分发 |
-| 自动更新 | v0.2 引入 tauri-plugin-updater，更新签名密钥届时生成 |
+| 首发操作系统 | macOS,优先 Apple Silicon(平台级 QA 基准) |
+| 后续平台 | Windows 与 Linux 的**构建与发布**已随 CD 矩阵启用(NSIS/MSI、deb/AppImage/rpm);平台级运行 QA 随 M1 后排期,问题以 v0.1.x 修复 |
+| 凭证后端 | keyring 已启用三平台后端(Keychain / Windows 凭据管理器 / libsecret) |
+| 打包 | Tauri bundler,targets=all(macOS dmg、Windows NSIS+MSI、Linux deb/AppImage/rpm) |
+| 签名与公证 | 更新包已用 minisign 私钥签名(仓库 Secrets);Apple Developer ID 签名与公证、Windows 代码签名仍待 M4 决定,未签名安装包首次打开需用户确认 |
+| 自动更新 | 已上线:updater 插件 + GitHub Releases latest.json,覆盖三平台六种目标;v0.1.1 起实测客户端在线升级链路 |
 
 ## 6. 验证点（M1 实测通过后才视为确认）
 
@@ -153,6 +153,7 @@
 | 2026-10-24 | 邮件 CSS 保留策略：<style> 块与 style 属性经 ammonia 白名单保留，脚本与外联由 iframe 沙箱 + CSP 双重阻断 | 邮件 HTML 无 CSS 渲染基本不可读；远程资源仍默认不加载 |
 | 2026-10-24 | i18n 手写实现（zh-CN/en-US 双词典），主题色五预设经 CSS 变量切换；主题渐变/主色/光晕全部变量化 | 用户要求设置含语言与色彩；无新增运行时依赖 |
 | 2026-10-24 | 代码托管 GitHub（公开仓库），CI/CD 用 GitHub Actions：发布用 tauri-action 构建 macOS 双架构并产出 Release 与更新源；日常测试按反馈移至本地 `pnpm verify` | 用户要求；更新源由此落定为 GitHub Releases latest.json |
+| 2026-10-25 | 发布矩阵扩展至 Windows / Linux（keyring 三平台后端、targets=all、四 runner 矩阵）；createUpdaterArtifacts 开启，latest.json 与 .sig 产物上线 | 用户要求补全多平台与 CD;首个 tag v0.1.0 已实测全绿 |
 | 2026-10-24 | 样式与组件改用 Ant Design 5（含 @ant-design/icons），弃用 Tailwind CSS + shadcn/ui | 用户偏好成品组件库；信息密集界面开箱即用，中文文档好 |
 
 决策记录只追加不删除；推翻旧决策时在对应行“决策”列标注“已由某日期决策取代”。
