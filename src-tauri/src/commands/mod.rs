@@ -243,32 +243,42 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
         let account = db.get_account(mailbox.account_id)?;
 
         let cached = db.get_cached_body(id)?;
-        let (text, html) = match cached {
-            Some(v) if v.0.is_some() || v.1.is_some() => v,
-            _ => {
-                let code = credentials::load_auth_code(&account.email)?;
-                let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
-                let raw = provider::qq::fetch_raw_message(&mut sess, &mailbox.name_raw, msg.uid.max(0) as u32).await?;
-                provider::qq::logout(sess).await;
+        let has_cache = matches!(&cached, Some((t, h)) if t.is_some() || h.is_some());
+        // 收件箱未读邮件:打开即需回写已读。拉正文与回写共用一条连接,
+        // 避免一次操作触发两次 IMAP 登录(QQ 对登录频率有限制)。
+        let needs_fetch = !has_cache;
+        let needs_seen = !msg.seen && mailbox.role == "inbox";
 
+        let (text, html) = if needs_fetch || needs_seen {
+            let code = credentials::load_auth_code(&account.email)?;
+            let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
+
+            let out = if needs_fetch {
+                let raw = provider::qq::fetch_raw_message(&mut sess, &mailbox.name_raw, msg.uid.max(0) as u32).await?;
                 let parsed = mail::extract_body(&raw);
                 db.cache_body(id, parsed.text.as_deref(), parsed.html.as_deref())?;
                 db.replace_attachments(id, &parsed.attachments)?;
                 db.set_message_attachment_flag(id, parsed.has_attachment)?;
                 (parsed.text, parsed.html)
-            }
-        };
+            } else {
+                cached.expect("已判定存在缓存")
+            };
 
-        if !msg.seen && mailbox.role == "inbox" {
-            match mark_seen_on_server(&account, &mailbox.name_raw, msg.uid.max(0) as u32, true).await {
-                Ok(()) => {
-                    db.set_seen_local(id, true)?;
-                }
-                Err(e) => {
-                    db.set_mailbox_error(mailbox.id, Some(&e.to_string()))?;
+            if needs_seen {
+                match provider::qq::set_seen_flag(&mut sess, &mailbox.name_raw, &msg.uid.max(0).to_string(), true).await {
+                    Ok(()) => {
+                        db.set_seen_local(id, true)?;
+                    }
+                    Err(e) => {
+                        db.set_mailbox_error(mailbox.id, Some(&e.to_string()))?;
+                    }
                 }
             }
-        }
+            provider::qq::logout(sess).await;
+            out
+        } else {
+            cached.expect("已判定存在缓存")
+        };
 
         let seen_now = db.get_message(id)?.seen;
         Ok(BodyDto {
@@ -333,72 +343,71 @@ pub async fn mark_all_seen(state: State<'_, AppState>, mailbox_id: Option<i64>) 
             return Ok(0);
         }
 
-        // 按 (账号, 邮箱) 分组
+        // 按账号分组,账号内再按邮箱分组;单账号失败只记到该账号,不中断其他账号
         use std::collections::BTreeMap;
-        let mut grouped: BTreeMap<(i64, i64), Vec<(i64, u32)>> = BTreeMap::new();
+        let mut by_account: BTreeMap<i64, BTreeMap<i64, Vec<(i64, u32)>>> = BTreeMap::new();
         for r in &rows {
-            grouped
-                .entry((r.account_id, r.mailbox_id))
+            by_account
+                .entry(r.account_id)
+                .or_default()
+                .entry(r.mailbox_id)
                 .or_default()
                 .push((r.message_id, r.uid));
         }
 
         let mut done: u32 = 0;
-        let mut current_account: Option<i64> = None;
-        let mut sess: Option<provider::qq::ImapSession> = None;
-
-        for ((account_id, mailbox_id), items) in grouped {
-            // 换账号时重建连接
-            if current_account != Some(account_id) {
-                if let Some(s) = sess.take() {
-                    provider::qq::logout(s).await;
-                }
-                let account = db.get_account(account_id)?;
-                let code = credentials::load_auth_code(&account.email)?;
-                sess = Some(provider::qq::connect(&account.email, &code).await?);
-                current_account = Some(account_id);
-            }
-
-            let mailbox = db.get_mailbox(mailbox_id)?;
-            let uids: Vec<u32> = items.iter().map(|(_, uid)| *uid).collect();
-            let mut succeeded: Vec<i64> = Vec::new();
-            let mut last_err: Option<String> = None;
-
-            for chunk in sync::uid_set_chunks(&uids, 500) {
-                let result = match sess.as_mut() {
-                    Some(s) => provider::qq::set_seen_flag(s, &mailbox.name_raw, &chunk, true).await,
-                    None => continue,
-                };
-                match result {
-                    Ok(()) => {
-                        let chunk_uids: Vec<u32> =
-                            chunk.split(',').filter_map(|p| p.parse().ok()).collect();
-                        succeeded.extend(
-                            items
-                                .iter()
-                                .filter(|(_, uid)| chunk_uids.contains(uid))
-                                .map(|(id, _)| *id),
-                        );
-                    }
-                    Err(e) => last_err = Some(e.to_string()),
+        for (account_id, mailboxes) in by_account {
+            match mark_account_seen(&db, account_id, mailboxes).await {
+                Ok(n) => done += n,
+                Err(e) => {
+                    let _ = db.set_account_error(account_id, Some(&e.to_string()));
                 }
             }
-
-            for id in &succeeded {
-                db.set_seen_local(*id, true)?;
-            }
-            done += succeeded.len() as u32;
-            if let Some(err) = last_err {
-                db.set_mailbox_error(mailbox_id, Some(&err))?;
-            }
-        }
-
-        if let Some(s) = sess.take() {
-            provider::qq::logout(s).await;
         }
         Ok(done)
     }))
     .await
+}
+
+/// 单账号的一键已读:一次连接,逐邮箱分块批写。
+async fn mark_account_seen(
+    db: &store::Store,
+    account_id: i64,
+    mailboxes: std::collections::BTreeMap<i64, Vec<(i64, u32)>>,
+) -> AppResult<u32> {
+    let account = db.get_account(account_id)?;
+    let code = credentials::load_auth_code(&account.email)?;
+    let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
+
+    let mut done: u32 = 0;
+    for (mailbox_id, items) in mailboxes {
+        let mailbox = db.get_mailbox(mailbox_id)?;
+        let uids: Vec<u32> = items.iter().map(|(_, uid)| *uid).collect();
+        let mut succeeded: Vec<i64> = Vec::new();
+
+        for chunk in sync::uid_set_chunks(&uids, 500) {
+            if let Ok(()) =
+                provider::qq::set_seen_flag(&mut sess, &mailbox.name_raw, &chunk, true).await
+            {
+                let set: std::collections::HashSet<u32> =
+                    chunk.split(',').filter_map(|p| p.parse().ok()).collect();
+                succeeded.extend(
+                    items
+                        .iter()
+                        .filter(|(_, uid)| set.contains(uid))
+                        .map(|(id, _)| *id),
+                );
+            }
+        }
+
+        for id in &succeeded {
+            db.set_seen_local(*id, true)?;
+        }
+        done += succeeded.len() as u32;
+    }
+
+    provider::qq::logout(sess).await;
+    Ok(done)
 }
 
 // ---------- 设置:检查更新与在线更新 ----------

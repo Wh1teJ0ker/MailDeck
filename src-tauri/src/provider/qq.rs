@@ -60,7 +60,9 @@ pub async fn connect_with(
     let client = async_imap::Client::new(stream);
     let mut session = match client.login(email, auth_code).await {
         Ok(session) => session,
-        Err((e, _client)) => Err(anyhow!("登录被拒绝:{e};请确认已开启 IMAP 且授权码有效"))?,
+        Err((e, _client)) => {
+            Err(anyhow!("登录被拒绝:{}", super::explain_login_failure(&e.to_string())))?
+        }
     };
     if post_login_id {
         // 网易系(163 等)要求客户端先上报 ID,否则后续命令返回 Unsafe Login

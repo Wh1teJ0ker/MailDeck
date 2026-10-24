@@ -73,6 +73,29 @@ pub async fn connect_for(
     .await
 }
 
+/// 把服务器返回的登录拒绝信息归因为可操作的中文排查清单,
+/// 并保留原始信息便于进一步排查;无法识别的错误原样透传。
+pub fn explain_login_failure(raw: &str) -> String {
+    if raw.contains("AUTHENTICATIONFAILED") {
+        format!(
+            "邮箱服务器拒绝了登录。请依次检查:\n\
+             1. 网页版邮箱设置中 IMAP/SMTP 服务已开启;\n\
+             2. 填的是 16 位授权码(不是邮箱密码),且复制完整;\n\
+             3. 最近改过邮箱密码,授权码已失效,需重新生成;\n\
+             4. 短时间多次登录会被临时限制,等待 15~30 分钟或重新生成授权码后重试;\n\
+             5. 账号状态正常(可先在网页版登录一次确认)。\n\
+             ——服务器原始信息:{raw}"
+        )
+    } else if raw.contains("Unsafe Login") || raw.contains("unsafe login") {
+        format!(
+            "163 等网易邮箱要求登录后先上报客户端 ID(MailDeck 会自动处理)。\n\
+             若反复出现,请更新到最新版本,并把以下信息反馈给开发者。——服务器原始信息:{raw}"
+        )
+    } else {
+        raw.to_string()
+    }
+}
+
 /// 文件夹角色:special-use 旗标优先,名字启发式兜底。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
