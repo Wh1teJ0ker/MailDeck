@@ -214,6 +214,38 @@ fn body_cache_attachments_and_mailbox_unread_counts() {
 }
 
 #[test]
+fn foreign_keys_cascade_survives_reopen() {
+    // 回归:PRAGMA foreign_keys 是每连接设置,重开库后必须仍然生效,
+    // 否则删除账号不会级联清理邮件与邮箱(垃圾数据残留)。
+    let path = std::env::temp_dir().join(format!("maildeck-test-fk-{}.db", std::process::id()));
+    cleanup(&path);
+
+    let inbox;
+    {
+        let s = Store::open(&path).expect("首次打开");
+        let a = s.insert_account("a@qq.com", "A", "#111111", "qq").unwrap();
+        inbox = s.upsert_mailbox(a, "INBOX", "INBOX", "inbox", "/").unwrap();
+        s.upsert_message(&msg(inbox, 1, "一", "s", 100, false)).unwrap();
+        s.upsert_message(&msg(inbox, 2, "二", "s", 200, false)).unwrap();
+    } // drop:连接关闭
+
+    // 重开(模拟应用重启),此时连接上 FK 必须仍是 ON
+    let s = Store::open(&path).expect("重开");
+    let accounts = s.list_accounts().unwrap();
+    assert_eq!(accounts.len(), 1);
+    s.delete_account(accounts[0].id).unwrap();
+
+    assert!(s.list_accounts().unwrap().is_empty());
+    assert!(s.list_mailboxes(accounts[0].id).unwrap().is_empty(), "邮箱应随账号级联删除");
+    assert!(
+        s.list_messages(None, None, false, "", 0, 50).unwrap().is_empty(),
+        "邮件应随账号级联删除,不能残留孤儿行"
+    );
+
+    cleanup(&path);
+}
+
+#[test]
 fn v1_database_is_migrated_to_mailbox_model() {
     let path = std::env::temp_dir().join(format!("maildeck-test-mig-{}.db", std::process::id()));
     cleanup(&path);

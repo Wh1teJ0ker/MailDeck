@@ -16,10 +16,10 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
-            let store = store::Store::open(&dir.join("maildeck.db"))?;
-            app.manage(state::AppState {
-                db: std::sync::Arc::new(tokio::sync::Mutex::new(store)),
-            });
+            let db_path = dir.join("maildeck.db");
+            // 启动即打开一次:确保迁移完成后再对外服务
+            let _ = store::Store::open(&db_path)?;
+            app.manage(state::AppState { db_path });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -13,7 +13,13 @@ pub const INBOX: &str = "INBOX";
 
 pub type ImapSession = Session<TlsStream<TcpStream>>;
 
+/// 进程级缓存:避免每次连接重复加载全量系统根证书
+static TLS_CONNECTOR: std::sync::OnceLock<tokio_rustls::TlsConnector> = std::sync::OnceLock::new();
+
 fn tls_connector() -> Result<tokio_rustls::TlsConnector> {
+    if let Some(c) = TLS_CONNECTOR.get() {
+        return Ok(c.clone());
+    }
     let mut roots = rustls::RootCertStore::empty();
     let native = rustls_native_certs::load_native_certs();
     // 部分系统证书解析失败不致命,只要仍有可用根证书即可;一个都没有时在下方兜底报错
@@ -29,7 +35,9 @@ fn tls_connector() -> Result<tokio_rustls::TlsConnector> {
     let config = rustls::ClientConfig::builder()
         .with_root_certificates(roots)
         .with_no_client_auth();
-    Ok(std::sync::Arc::new(config).into())
+    let connector: tokio_rustls::TlsConnector = std::sync::Arc::new(config).into();
+    let _ = TLS_CONNECTOR.set(connector.clone());
+    Ok(connector)
 }
 
 /// 建立 IMAPS 连接并用授权码登录;post_login_id 为 true 时按网易系要求上报 IMAP ID。

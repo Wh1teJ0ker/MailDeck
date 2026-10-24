@@ -188,7 +188,7 @@ async fn sync_inner(store: &Store, account: &crate::store::AccountRow) -> anyhow
     }
 
     provider::qq::logout(sess).await;
-    let _ = store.update_sync_state(account.id, true, first_error.as_ref().map(|e| e.to_string()).as_deref());
+    let _ = store.update_sync_state(account.id, first_error.as_ref().map(|e| e.to_string()).as_deref());
     match first_error {
         Some(e) => Err(e),
         None => Ok(total),

@@ -9,7 +9,6 @@ use crate::state::AppState;
 use crate::store::{self, AccountRow, AttachmentRow};
 use crate::{credentials, mail, provider, sync};
 
-use std::sync::Arc;
 use tauri::State;
 
 #[derive(Debug, serde::Serialize)]
@@ -49,12 +48,14 @@ pub struct BodyDto {
 /// 在阻塞线程上运行包含 !Send 组件(如 async-imap 响应流)的异步任务。
 /// 注意装箱类型用 LocalBoxFuture:内部 Future 不要求 Send,
 /// Send 边界只落在闭包与返回值上,由 spawn_blocking 的线程负责执行。
+/// 每个命令短生命周期开自己的 SQLite 连接(WAL 并发读 + busy_timeout),
+/// 网络等待期间不持有任何共享锁。
 async fn run_blocking<T: Send + 'static>(
-    db: Arc<tokio::sync::Mutex<store::Store>>,
-    f: impl FnOnce(Arc<tokio::sync::Mutex<store::Store>>) -> futures::future::LocalBoxFuture<'static, AppResult<T>> + Send + 'static,
+    db_path: std::path::PathBuf,
+    f: impl FnOnce(std::path::PathBuf) -> futures::future::LocalBoxFuture<'static, AppResult<T>> + Send + 'static,
 ) -> AppResult<T> {
     tauri::async_runtime::spawn_blocking(move || {
-        tauri::async_runtime::block_on(f(db))
+        tauri::async_runtime::block_on(f(db_path))
     })
     .await
     .map_err(|e| err(format!("后台任务执行失败:{e}")))?
@@ -69,7 +70,8 @@ pub async fn add_account(
     display_name: Option<String>,
     color: Option<String>,
 ) -> AppResult<AccountRow> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         // 先按类型校验:只有注册表中 available 的类型可添加
         let ptype = provider_type.as_deref().unwrap_or("qq");
         let meta = crate::provider::meta(ptype).ok_or_else(|| err(format!("未知邮箱类型:{ptype}")))?;
@@ -81,11 +83,8 @@ pub async fn add_account(
         if !email.contains('@') || email.len() < 5 {
             return Err(err("邮箱地址格式不正确"));
         }
-        {
-            let db = db.lock().await;
-            if db.find_account_by_email(&email)?.is_some() {
-                return Err(err("该邮箱已添加过,不能重复添加"));
-            }
+        if db.find_account_by_email(&email)?.is_some() {
+            return Err(err("该邮箱已添加过,不能重复添加"));
         }
 
         // 先验证连接与授权码,再落任何本地数据(v0.1 只有 QQ 一种连接实现)
@@ -103,7 +102,6 @@ pub async fn add_account(
 
         credentials::save_auth_code(&email, &auth_code)?;
 
-        let db = db.lock().await;
         let id = db.insert_account(&email, &display, &color, ptype)?;
         let account = db.get_account(id)?;
 
@@ -124,8 +122,8 @@ pub async fn list_mailboxes(
     state: State<'_, AppState>,
     account_id: i64,
 ) -> AppResult<Vec<store::MailboxRow>> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         Ok(db.list_mailboxes(account_id)?)
     }))
     .await
@@ -133,8 +131,8 @@ pub async fn list_mailboxes(
 
 #[tauri::command]
 pub async fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<AccountRow>> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         Ok(db.list_accounts()?)
     }))
     .await
@@ -142,8 +140,8 @@ pub async fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<AccountR
 
 #[tauri::command]
 pub async fn remove_account(state: State<'_, AppState>, id: i64) -> AppResult<()> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         let account = db.get_account(id)?;
         db.delete_account(id)?;
         drop(db);
@@ -155,8 +153,8 @@ pub async fn remove_account(state: State<'_, AppState>, id: i64) -> AppResult<()
 
 #[tauri::command]
 pub async fn set_account_enabled(state: State<'_, AppState>, id: i64, enabled: bool) -> AppResult<()> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         db.set_account_enabled(id, enabled)?;
         Ok(())
     }))
@@ -170,8 +168,8 @@ pub async fn update_account(
     display_name: String,
     color: String,
 ) -> AppResult<AccountRow> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         db.get_account(id)?;
         let name = display_name.trim().to_string();
         if name.is_empty() {
@@ -188,8 +186,8 @@ pub async fn update_account(
 
 #[tauri::command]
 pub async fn sync_account(state: State<'_, AppState>, id: i64) -> AppResult<SyncOutcomeDto> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         let account = db.get_account(id)?;
         Ok(sync::sync_account(&db, &account).await.into())
     }))
@@ -198,8 +196,8 @@ pub async fn sync_account(state: State<'_, AppState>, id: i64) -> AppResult<Sync
 
 #[tauri::command]
 pub async fn sync_all(state: State<'_, AppState>) -> AppResult<Vec<SyncOutcomeDto>> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         let accounts = db.list_accounts()?;
         let mut outcomes = Vec::new();
         for account in accounts.iter().filter(|a| a.enabled) {
@@ -220,8 +218,8 @@ pub async fn list_messages(
     offset: Option<i64>,
     limit: Option<i64>,
 ) -> AppResult<Vec<store::MessageRow>> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         Ok(db.list_messages(
             account_id,
             mailbox_id,
@@ -238,8 +236,8 @@ pub async fn list_messages(
 /// 收件箱内未读邮件在正文成功取得后回写已读(失败记录到邮箱状态,不阻塞阅读)。
 #[tauri::command]
 pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<BodyDto> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         let msg = db.get_message(id)?;
         let mailbox = db.get_mailbox(msg.mailbox_id)?;
         let account = db.get_account(mailbox.account_id)?;
@@ -294,8 +292,8 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
 
 #[tauri::command]
 pub async fn set_seen(state: State<'_, AppState>, id: i64, seen: bool) -> AppResult<()> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         let msg = db.get_message(id)?;
         let mailbox = db.get_mailbox(msg.mailbox_id)?;
         let account = db.get_account(mailbox.account_id)?;
@@ -309,8 +307,8 @@ pub async fn set_seen(state: State<'_, AppState>, id: i64, seen: bool) -> AppRes
 
 #[tauri::command]
 pub async fn unread_counts(state: State<'_, AppState>) -> AppResult<Vec<store::MailboxUnread>> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         Ok(db.mailbox_unread_counts()?)
     }))
     .await
@@ -328,8 +326,8 @@ async fn mark_seen_on_server(account: &AccountRow, mailbox_raw: &str, uid: u32, 
 /// 按账号复用连接、按邮箱分组、UID 分块批写;单个账号失败不影响其余账号。
 #[tauri::command]
 pub async fn mark_all_seen(state: State<'_, AppState>, mailbox_id: Option<i64>) -> AppResult<u32> {
-    run_blocking(state.db.clone(), move |db| Box::pin(async move {
-        let db = db.lock().await;
+    run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
+        let db = store::Store::open(&path)?;
         let rows = db.list_unseen_for_scope(mailbox_id)?;
         if rows.is_empty() {
             return Ok(0);

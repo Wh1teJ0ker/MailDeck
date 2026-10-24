@@ -154,6 +154,11 @@ impl Store {
     pub fn open(path: &Path) -> AppResult<Self> {
         let conn = Connection::open(path)?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
+        // 显式声明,不依赖 bundled SQLite 的编译旗标(SQLITE_DEFAULT_FOREIGN_KEYS)
+        conn.pragma_update(None, "foreign_keys", "ON")?;
+        // WAL 下的推荐同步级别;多连接并发写时等待而非立刻报 busy
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let store = Self { conn };
         store.migrate()?;
         Ok(store)
@@ -300,8 +305,7 @@ impl Store {
     }
 
     /// 记录账号级同步时间与错误(游标在邮箱行)。
-    pub fn update_sync_state(&self, id: i64, ok: bool, error: Option<&str>) -> AppResult<()> {
-        let _ = ok;
+    pub fn update_sync_state(&self, id: i64, error: Option<&str>) -> AppResult<()> {
         self.conn.execute(
             "UPDATE accounts SET last_sync_at = ?2, last_error = ?3 WHERE id = ?1",
             params![id, now(), error],
