@@ -1,0 +1,108 @@
+/** 简体中文(基准词典,键位即命名空间) */
+export default {
+  // 品牌
+  "brand.slogan": "智能邮件",
+
+  // 智能视图
+  "group.views": "智能视图",
+  "group.accounts": "账号",
+  "nav.all": "全部邮件",
+  "nav.unread": "未读",
+  "account.add": "添加邮箱账号",
+  "account.empty": "点击上方 + 添加邮箱账号",
+  "account.lastSyncPrefix": "上次同步:",
+  "account.never": "未同步",
+  "account.syncing": "正在同步...",
+  "account.syncedAfterFolders": "同步后显示文件夹",
+
+  // 文件夹角色
+  "folder.inbox": "收件箱",
+  "folder.sent": "已发送",
+  "folder.drafts": "草稿箱",
+  "folder.trash": "已删除",
+  "folder.spam": "垃圾邮件",
+
+  // 列表
+  "list.search": "搜索发件人 / 主题(已同步范围)",
+  "list.filterAll": "全部",
+  "list.filterUnread": "未读",
+  "list.markAll": "全部已读",
+  "list.markAllTip": "把当前视图的全部未读标为已读",
+  "list.earlier": "加载更早的邮件",
+  "list.empty": "暂无已同步邮件,点击右上角刷新拉取",
+  "list.emptyQuery": "没有匹配的邮件",
+  "list.settings": "设置",
+  "list.sync": "同步",
+  "scope.all": "全部邮件",
+
+  // 账号菜单
+  "menu.sync": "立即同步",
+  "menu.pause": "暂停同步",
+  "menu.resume": "恢复同步",
+  "menu.edit": "编辑",
+  "menu.remove": "移除账号",
+  "remove.title": "移除「{name}」?",
+  "remove.content": "仅清理本机配置与缓存,不影响邮箱里的邮件。",
+  "remove.ok": "移除",
+  "cancel": "取消",
+  "confirm": "确认",
+
+  // 提示消息
+  "msg.syncDone": "同步完成,新邮件 {n} 封",
+  "msg.syncPartial": "同步完成,新邮件 {n} 封;{failed} 个账号失败",
+  "msg.markAllDone": "已将 {n} 封邮件标为已读",
+  "msg.markAllEmpty": "当前视图没有未读邮件",
+  "msg.markUnreadDone": "已标为未读",
+  "msg.accountUpdated": "账号已更新",
+  "msg.accountRemoved": "账号已移除(仅清理本机数据)",
+  "msg.accountAdded": "账号「{name}」已添加,首次同步已在后台完成",
+  "msg.syncFailPrefix": "同步失败:",
+
+  // 阅读区
+  "reader.pick": "选择一封邮件开始阅读",
+  "reader.loading": "正在拉取正文...",
+  "reader.loadFail": "正文加载失败",
+  "reader.emptyBody": "该邮件没有可显示的正文",
+  "reader.to": "收件人:",
+  "reader.markUnread": "标为未读",
+
+  // 添加账号
+  "add.title": "添加邮箱账号",
+  "add.type": "邮箱类型",
+  "add.email": "邮箱地址",
+  "add.authCode": "授权码",
+  "add.authCodeExtra": "只保存在系统钥匙串中,不会写入普通文件或日志",
+  "add.displayName": "显示名称(可选)",
+  "add.displayNamePlaceholder": "默认取邮箱前缀",
+  "add.color": "账号颜色",
+  "add.ok": "验证并添加",
+  "add.comingSoon": "「{name}」采用 {auth} 认证,正在适配中;当前版本请先选择 QQ 邮箱。",
+  "add.emailRequired": "请输入邮箱地址",
+  "add.emailInvalid": "邮箱格式不正确",
+  "add.codeRequired": "请输入授权码",
+  "add.nameRequired": "显示名称不能为空",
+
+  // 编辑账号
+  "edit.title": "编辑账号",
+  "edit.email": "邮箱地址",
+  "edit.displayName": "显示名称",
+
+  // 设置
+  "settings.title": "设置",
+  "settings.general": "通用",
+  "settings.language": "语言",
+  "settings.accent": "主题色",
+  "settings.version": "当前版本",
+  "settings.checkUpdate": "检查更新",
+  "settings.upToDate": "已是最新版本",
+  "settings.newVersion": "发现新版本",
+  "settings.install": "下载并安装",
+  "settings.checkFail": "检查更新失败:",
+  "settings.relailTitle": "更新已安装",
+  "settings.relaunchContent": "重启 MailDeck 后新版本生效。",
+  "settings.restartNow": "立即重启",
+  "settings.restartLater": "稍后手动重启",
+
+  // 通用按钮
+  "btn.save": "保存",
+};
