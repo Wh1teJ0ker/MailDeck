@@ -134,7 +134,7 @@ pub async fn sync_account(store: &Store, account: &crate::store::AccountRow) -> 
 
 async fn sync_inner(store: &Store, account: &crate::store::AccountRow) -> anyhow::Result<usize> {
     let code = credentials::load_auth_code(&account.email)?;
-    let mut sess = provider::qq::connect(&account.email, &code).await?;
+    let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
 
     // 1. 发现邮箱(LIST),登记进本地库
     use futures::StreamExt;
@@ -162,7 +162,8 @@ async fn sync_inner(store: &Store, account: &crate::store::AccountRow) -> anyhow
                 continue;
             }
             let display = decode_utf7(&raw);
-            let role = provider::classify_mailbox(&raw, &flags).as_str();
+            // 分类必须用解码后的名字:163 的 UTF-7 原始名(&XfJT0ZAB-)匹配不到中文启发式
+            let role = provider::classify_mailbox(&display, &flags).as_str();
             let delim = name.delimiter().unwrap_or("/").to_string();
             store.upsert_mailbox(account.id, &raw, &display, role, &delim)?;
         }

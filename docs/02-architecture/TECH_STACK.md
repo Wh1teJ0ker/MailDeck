@@ -59,20 +59,23 @@
 - Rust 的开发效率劣势（编译速度、异步生命周期门槛）通过收敛 v0.1.0 范围来控制。
 - 降级路径：若 M1 验证中 async-imap 无法满足 QQ 的实际行为，改用同步 `imap` crate 包一层 tokio 阻塞任务，框架层决策不变。
 
-## 3. 服务商接入方案（v0.1.0：QQ 邮箱）
+## 3. 服务商接入方案(v0.1.1:QQ 邮箱 + 163 邮箱)
 
-| 项目 | 方案 |
-| --- | --- |
-| 服务器 | `imap.qq.com:993` |
-| 协议 | IMAP over TLS |
-| 认证 | 授权码（用户在 QQ 邮箱设置中生成，流程见 PLAN.md 4.1） |
-| 授权流程 | 应用外生成授权码，应用内填入并验证 |
-| 账户类型 | QQ 邮箱地址 |
-| 凭证保存 | 授权码 → keyring |
+| 项目 | QQ 邮箱 | 163 邮箱 |
+| --- | --- | --- |
+| 服务器 | `imap.qq.com:993` | `imap.163.com:993` |
+| 协议 | IMAP over TLS | IMAP over TLS |
+| 认证 | 授权码(网页版「设置 → 账户」生成，流程见 PLAN.md 4.1) | 客户端授权密码(网页版「设置 → POP3/SMTP/IMAP」开启服务并生成) |
+| 登录后 ID 上报 | 不需要 | **必须**:登录后先发 IMAP `ID` 命令标识客户端，否则后续命令被拒(Unsafe Login);经 async-imap 原生 `session.id()` 实现 |
+| 文件夹名 | 英文/中文混杂 | modified UTF-7 编码(如 `&XfJT0ZAB-` = 已发送)，须经解码再分类 |
+| 账户类型 | QQ 邮箱地址 | 163/126 等网易邮箱地址 |
+| 凭证保存 | 授权码 → keyring(`qq:<邮箱>`) | 授权码 → keyring(`163:<邮箱>`) |
 
-适配层硬性要求：认证方式、服务器参数、能力探测全部收敛在 provider 适配层（规划为 `provider::qq`），同步调度与 UI 不感知服务商差异。
+服务商参数(端点、是否要求 ID)统一收敛在 provider 注册表(`provider/mod.rs` 的 REGISTRY),连接经 `provider::connect_for(provider_id, ...)` 分发;同步调度与 UI 不感知服务商差异。前端添加弹窗由注册表驱动，163 已可选。
 
-后续服务商预告（不纳入 v0.1.0）：Outlook、Gmail 等需 OAuth2（XOAUTH2、浏览器授权、令牌刷新），163 等仍为授权码模式；接入前须在本节登记方案并补验证点，OAuth2 相关依赖（oauth2、open 等）届时再引入。
+后续服务商预告(不纳入当前版本):Outlook、Gmail 等需 OAuth2(XOAUTH2、浏览器授权、令牌刷新)，接入前须在本节登记方案并补验证点，OAuth2 相关依赖(oauth2、open 等)届时再引入。
+
+163 专项验证点(M1.1,真实账号待实测，冒烟用例 `tests/provider_163.rs --ignored`):ID 上报后 SELECT/LIST/FETCH 全链路、UTF-7 文件夹解码与分类落地、授权码失效路径。
 
 ## 4. 依赖明细与理由
 
@@ -154,6 +157,7 @@
 | 2026-10-24 | i18n 手写实现（zh-CN/en-US 双词典），主题色五预设经 CSS 变量切换；主题渐变/主色/光晕全部变量化 | 用户要求设置含语言与色彩；无新增运行时依赖 |
 | 2026-10-24 | 代码托管 GitHub（公开仓库），CI/CD 用 GitHub Actions：发布用 tauri-action 构建 macOS 双架构并产出 Release 与更新源；日常测试按反馈移至本地 `pnpm verify` | 用户要求；更新源由此落定为 GitHub Releases latest.json |
 | 2026-10-25 | 发布矩阵扩展至 Windows / Linux（keyring 三平台后端、targets=all、四 runner 矩阵）；createUpdaterArtifacts 开启，latest.json 与 .sig 产物上线 | 用户要求补全多平台与 CD;首个 tag v0.1.0 已实测全绿 |
+| 2026-10-25 | v0.1.1 新增 163 邮箱适配（授权码 + 登录后 IMAP ID 上报 + UTF-7 文件夹），registry 增加 endpoint 字段，连接收敛为 connect_for 分发 | 用户要求;真实账号冒烟用例就绪待实测 |
 | 2026-10-24 | 样式与组件改用 Ant Design 5（含 @ant-design/icons），弃用 Tailwind CSS + shadcn/ui | 用户偏好成品组件库；信息密集界面开箱即用，中文文档好 |
 
 决策记录只追加不删除；推翻旧决策时在对应行“决策”列标注“已由某日期决策取代”。

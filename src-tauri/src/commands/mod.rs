@@ -89,7 +89,7 @@ pub async fn add_account(
         }
 
         // 先验证连接与授权码,再落任何本地数据(v0.1 只有 QQ 一种连接实现)
-        let mut sess = provider::qq::connect(&email, &auth_code).await?;
+        let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
         sess.select(provider::qq::INBOX).await?;
         provider::qq::logout(sess).await;
 
@@ -249,7 +249,7 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
             Some(v) if v.0.is_some() || v.1.is_some() => v,
             _ => {
                 let code = credentials::load_auth_code(&account.email)?;
-                let mut sess = provider::qq::connect(&account.email, &code).await?;
+                let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
                 let raw = provider::qq::fetch_raw_message(&mut sess, &mailbox.name_raw, msg.uid.max(0) as u32).await?;
                 provider::qq::logout(sess).await;
 
@@ -318,7 +318,7 @@ pub async fn unread_counts(state: State<'_, AppState>) -> AppResult<Vec<store::M
 
 async fn mark_seen_on_server(account: &AccountRow, mailbox_raw: &str, uid: u32, seen: bool) -> AppResult<()> {
     let code = credentials::load_auth_code(&account.email)?;
-    let mut sess = provider::qq::connect(&account.email, &code).await?;
+    let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
     provider::qq::set_seen_flag(&mut sess, mailbox_raw, &uid.to_string(), seen).await?;
     provider::qq::logout(sess).await;
     Ok(())

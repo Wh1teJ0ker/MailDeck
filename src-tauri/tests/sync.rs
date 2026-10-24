@@ -125,3 +125,18 @@ fn decode_imap_utf7_folder_names() {
     // 非法段不 panic,原样保留
     assert_eq!(decode_utf7("&???-"), "&???-");
 }
+
+#[test]
+fn netease_163_folder_pipeline() {
+    // 163 真实场景:UTF-7 文件夹名 → 解码 → 分类,一条流水线
+    let raw = "&XfJT0ZAB-";
+    assert_eq!(
+        classify_mailbox(raw, &[]),
+        MailboxRole::Other,
+        "用 UTF-7 原始名分类必然落到 Other——同步管线必须先解码"
+    );
+    let decoded = decode_utf7(raw);
+    assert_eq!(decoded, "已发送");
+    assert_eq!(classify_mailbox(&decoded, &[]), MailboxRole::Sent);
+    assert_eq!(classify_mailbox("INBOX", &[]), MailboxRole::Inbox);
+}

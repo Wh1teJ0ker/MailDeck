@@ -32,22 +32,45 @@ fn tls_connector() -> Result<tokio_rustls::TlsConnector> {
     Ok(std::sync::Arc::new(config).into())
 }
 
-/// 建立 IMAPS 连接并用授权码登录。
-pub async fn connect(email: &str, auth_code: &str) -> Result<ImapSession> {
-    let tcp = TcpStream::connect((HOST, PORT))
+/// 建立 IMAPS 连接并用授权码登录;post_login_id 为 true 时按网易系要求上报 IMAP ID。
+pub async fn connect_with(
+    host: &str,
+    port: u16,
+    email: &str,
+    auth_code: &str,
+    post_login_id: bool,
+) -> Result<ImapSession> {
+    let tcp = TcpStream::connect((host, port))
         .await
-        .with_context(|| format!("连接 {HOST}:{PORT} 失败,请检查网络"))?;
-    let server_name =
-        rustls_pki_types::ServerName::try_from(HOST).map_err(|_| anyhow!("主机名非法"))?;
+        .with_context(|| format!("连接 {host}:{port} 失败,请检查网络"))?;
+    let server_name = rustls_pki_types::ServerName::try_from(host.to_string())
+        .map_err(|_| anyhow!("主机名非法"))?;
     let stream = tls_connector()?
         .connect(server_name, tcp)
         .await
         .context("TLS 握手失败")?;
     let client = async_imap::Client::new(stream);
-    match client.login(email, auth_code).await {
-        Ok(session) => Ok(session),
-        Err((e, _client)) => Err(anyhow!("登录被拒绝:{e};请确认已开启 IMAP 且授权码有效")),
+    let mut session = match client.login(email, auth_code).await {
+        Ok(session) => session,
+        Err((e, _client)) => Err(anyhow!("登录被拒绝:{e};请确认已开启 IMAP 且授权码有效"))?,
+    };
+    if post_login_id {
+        // 网易系(163 等)要求客户端先上报 ID,否则后续命令返回 Unsafe Login
+        session
+            .id([
+                ("name", Some("MailDeck")),
+                ("version", Some(env!("CARGO_PKG_VERSION"))),
+                ("vendor", Some("MailDeck")),
+            ])
+            .await
+            .context("IMAP ID 上报失败")?;
     }
+    Ok(session)
+}
+
+/// QQ 邮箱连接(兼容旧调用点)。
+pub async fn connect(email: &str, auth_code: &str) -> Result<ImapSession> {
+    connect_with(HOST, PORT, email, auth_code, false).await
 }
 
 /// 拉取单封邮件的完整原始内容。
