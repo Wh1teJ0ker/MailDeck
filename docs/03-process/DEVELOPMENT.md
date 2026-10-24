@@ -12,19 +12,20 @@
 
 | 场景 | 分支 | 示例 |
 | --- | --- | --- |
-| 功能 | `feature/<模块>-<内容>` | `feature/outlook-oauth2` |
+| 功能 | `feature/<模块>-<内容>` | `feature/163-imap-id` |
 | 修复 | `fix/<内容>` | `fix/uidvalidity-reset` |
 | 文档 | `docs/<内容>` | `docs/tech-stack` |
 | 重构 / 测试 / 杂务 | `refactor/` `test/` `chore/` | `refactor/sync-state-machine` |
 
 - main 始终保持可构建、可运行。
+- **推送远程的硬性前置条件:本地完整测试已完成且 `pnpm verify` 全绿。任何代码或文档变更,未通过本地全量校验前一律不得 `git push`**(文档-only 变更同样执行,校验成本约 1 分钟)。
 - 提交信息使用 Conventional Commits：`feat` / `fix` / `docs` / `refactor` / `test` / `chore`，格式 `类型(范围): 描述`，例如 `feat(sync): UIDVALIDITY 变化时重建索引`。
 
 ## 3. 测试策略(本地执行)
 
 **硬性规则：先写完全部测试文件，再写实现代码；测试与源码完全分离，源码文件内不写内嵌测试（Rust 不用 `#[cfg(test)]`，前端不用同文件 `*.test.tsx`）。**
 
-**测试与构建检查全部在本地完成,远程不跑 CI**(GitHub 只保留 tag → Release 构建推送)。合入前运行一键校验:
+**测试与构建检查全部在本地完成,远程不跑 CI**(GitHub 只保留 tag → Release 构建推送)。**推送门槛:任何变更 push 前,必须已完成完整本地测试且 `pnpm verify` 全绿——远程没有第二道防线,本地校验是唯一闸门,这条纪律不能破。** 合入前运行一键校验:
 
 ```bash
 pnpm verify   # = 前端 Vitest + 前端构建(tsc+vite) + Rust cargo test
