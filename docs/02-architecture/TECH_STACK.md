@@ -152,7 +152,7 @@
 | 2026-10-24 | v0.1.0 提前引入多文件夹支持（发现/分类/按邮箱同步与未读统计），v0.3 规划相应收窄 | 用户要求；IMAP UTF-7 解码为手写实现（约 60 行，含单测），不引入额外依赖 |
 | 2026-10-24 | 邮件 CSS 保留策略：<style> 块与 style 属性经 ammonia 白名单保留，脚本与外联由 iframe 沙箱 + CSP 双重阻断 | 邮件 HTML 无 CSS 渲染基本不可读；远程资源仍默认不加载 |
 | 2026-10-24 | i18n 手写实现（zh-CN/en-US 双词典），主题色五预设经 CSS 变量切换；主题渐变/主色/光晕全部变量化 | 用户要求设置含语言与色彩；无新增运行时依赖 |
-| 2026-10-24 | 代码托管 GitHub（私有仓库），CI/CD 用 GitHub Actions：CI 双 job（前端 ubuntu / Rust macOS），发布用 tauri-action 构建 macOS 双架构并产出 Release 与更新源 | 用户要求；更新源由此落定为 GitHub Releases latest.json |
+| 2026-10-24 | 代码托管 GitHub（公开仓库），CI/CD 用 GitHub Actions：发布用 tauri-action 构建 macOS 双架构并产出 Release 与更新源；日常测试按反馈移至本地 `pnpm verify` | 用户要求；更新源由此落定为 GitHub Releases latest.json |
 | 2026-10-24 | 样式与组件改用 Ant Design 5（含 @ant-design/icons），弃用 Tailwind CSS + shadcn/ui | 用户偏好成品组件库；信息密集界面开箱即用，中文文档好 |
 
 决策记录只追加不删除；推翻旧决策时在对应行“决策”列标注“已由某日期决策取代”。
