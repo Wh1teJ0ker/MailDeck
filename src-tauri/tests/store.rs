@@ -246,6 +246,66 @@ fn foreign_keys_cascade_survives_reopen() {
 }
 
 #[test]
+fn db_file_is_encrypted_at_rest() {
+    // 落盘的数据库文件不得泄露内容:不能有 SQLite 明文魔数,也不能直接搜到正文
+    let path = std::env::temp_dir().join(format!("maildeck-test-enc-{}.db", std::process::id()));
+    cleanup(&path);
+
+    let marker_body = "机密正文标记-SECRET-BODY-9527";
+    {
+        let s = Store::open(&path).unwrap();
+        let a = s.insert_account("a@qq.com", "A", "#111111", "qq").unwrap();
+        let inbox = s.upsert_mailbox(a, "INBOX", "INBOX", "inbox", "/").unwrap();
+        s.upsert_message(&msg(inbox, 1, marker_body, "s", 100, false)).unwrap();
+        s.cache_body(s.list_messages(None, None, false, "", 0, 1).unwrap()[0].id,
+                      Some(marker_body), None).unwrap();
+    }
+
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(
+        !bytes.starts_with(b"SQLite format 3\0"),
+        "数据库文件不应是明文 SQLite"
+    );
+    let hay = bytes.windows(marker_body.len())
+        .any(|w| w == marker_body.as_bytes());
+    assert!(!hay, "正文明文不应直接出现在数据库文件中");
+    let hay_subj = bytes.windows(6).any(|w| w == b"SECRET");
+    assert!(!hay_subj, "主题明文不应直接出现在数据库文件中");
+
+    cleanup(&path);
+}
+
+#[test]
+fn legacy_plaintext_db_auto_migrates() {
+    // v0.1.0 的明文库:用 open_plain 构造,新版本 open 时应自动迁入加密库且数据完好
+    let path = std::env::temp_dir().join(format!("maildeck-test-legacy-{}.db", std::process::id()));
+    cleanup(&path);
+
+    {
+        let s = Store::open_plain(&path).expect("构造旧明文库");
+        let a = s.insert_account("old@qq.com", "旧", "#000000", "qq").unwrap();
+        let inbox = s.upsert_mailbox(a, "INBOX", "INBOX", "inbox", "/").unwrap();
+        s.upsert_message(&msg(inbox, 7, "迁移邮件", "s", 100, false)).unwrap();
+    }
+
+    let s = Store::open(&path).expect("加密方式打开应触发迁移");
+    let accounts = s.list_accounts().unwrap();
+    assert_eq!(accounts.len(), 1);
+    let rows = s.list_messages(Some(accounts[0].id), None, false, "", 0, 50).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].subject.as_deref(), Some("迁移邮件"));
+
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(!bytes.starts_with(b"SQLite format 3\0"), "迁移后文件应为加密格式");
+    assert!(
+        !bytes.windows(12).any(|w| w == b"SQLite form"),
+        "迁移后不应残留明文头"
+    );
+
+    cleanup(&path);
+}
+
+#[test]
 fn v1_database_is_migrated_to_mailbox_model() {
     let path = std::env::temp_dir().join(format!("maildeck-test-mig-{}.db", std::process::id()));
     cleanup(&path);

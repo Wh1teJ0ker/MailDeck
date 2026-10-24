@@ -1,5 +1,6 @@
 pub mod app_settings;
 pub mod commands;
+pub mod crypto;
 pub mod credentials;
 pub mod error;
 pub mod mail;

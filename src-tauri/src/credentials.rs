@@ -23,14 +23,20 @@ fn file_path(app_dir: &Path) -> PathBuf {
 fn read_file_map(app_dir: &Path) -> std::collections::BTreeMap<String, String> {
     std::fs::read_to_string(file_path(app_dir))
         .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
+        .and_then(|text| {
+            let wrapper: serde_json::Value = serde_json::from_str(&text).ok()?;
+            let data = wrapper.get("data")?.as_str()?;
+            let plain = crate::crypto::decrypt_b64(data)?;
+            serde_json::from_str(&String::from_utf8(plain).ok()?).ok()
+        })
         .unwrap_or_default()
 }
 
 fn write_file_map(app_dir: &Path, map: &std::collections::BTreeMap<String, String>) -> AppResult<()> {
-    let text = serde_json::to_string_pretty(map)
+    let plain = serde_json::to_string(map)
         .map_err(|e| crate::error::err(format!("序列化凭证失败:{e}")))?;
-    std::fs::write(file_path(app_dir), text)?;
+    let wrapper = serde_json::json!({ "v": 1, "data": crate::crypto::encrypt_b64(plain.as_bytes()) });
+    std::fs::write(file_path(app_dir), serde_json::to_string_pretty(&wrapper).unwrap())?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

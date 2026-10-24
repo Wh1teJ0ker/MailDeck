@@ -45,6 +45,13 @@ fn file_mode_roundtrip_and_delete() {
 
     // 删除不存在的条目是幂等的
     credentials::delete_auth_code(&mode, &path, "a@163.com").unwrap();
+
+    // 落盘内容必须加密:文件里不能直接搜到授权码
+    let bytes = std::fs::read(path.join("credentials.json")).unwrap();
+    assert!(
+        !bytes.windows(8).any(|w| w == b"code-abc" || w == b"code-xyz" || w == b"code-b"),
+        "凭证文件不应包含明文授权码"
+    );
 }
 
 #[test]

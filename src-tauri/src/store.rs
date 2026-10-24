@@ -151,8 +151,27 @@ pub struct Store {
 }
 
 impl Store {
+    /// 打开加密数据库;检测到 v0.1.0 的明文库时自动迁移(数据保留,原明文文件删除)。
     pub fn open(path: &Path) -> AppResult<Self> {
+        Self::open_inner(path, true)
+    }
+
+    /// 打开未加密数据库——仅用于构造迁移夹具与迁移读取,业务代码不得使用。
+    pub fn open_plain(path: &Path) -> AppResult<Self> {
+        Self::open_inner(path, false)
+    }
+
+    fn open_inner(path: &Path, encrypted: bool) -> AppResult<Self> {
+        if encrypted && Self::is_legacy_plaintext(path)? {
+            Self::migrate_plaintext_to_encrypted(path)?;
+        }
         let conn = Connection::open(path)?;
+        if encrypted {
+            conn.execute_batch(&crate::crypto::sqlcipher_key_pragma())?;
+            // 探针:密钥不匹配或文件损坏在此暴露,而不是等后续语句莫名失败
+            conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| r.get::<_, i64>(0))
+                .map_err(|_| err("本地数据库密钥校验失败:文件可能损坏或来自其他机器"))?;
+        }
         conn.pragma_update(None, "journal_mode", "WAL")?;
         // 显式声明,不依赖 bundled SQLite 的编译旗标(SQLITE_DEFAULT_FOREIGN_KEYS)
         conn.pragma_update(None, "foreign_keys", "ON")?;
@@ -162,6 +181,86 @@ impl Store {
         let store = Self { conn };
         store.migrate()?;
         Ok(store)
+    }
+
+    const SQLITE_MAGIC: &'static [u8] = b"SQLite format 3\0";
+
+
+    fn is_legacy_plaintext(path: &Path) -> AppResult<bool> {
+        use std::io::Read;
+        if !path.exists() {
+            return Ok(false);
+        }
+        let mut f = std::fs::File::open(path)?;
+        let mut head = [0u8; 16];
+        let n = f.read(&mut head)?;
+        Ok(n >= 16 && &head[..16] == Self::SQLITE_MAGIC)
+    }
+
+    /// 明文库 → 加密库:sqlcipher_export 到临时文件,校验账号数一致后换名,明文原件删除。
+    fn migrate_plaintext_to_encrypted(path: &Path) -> AppResult<()> {
+        let tmp = path.with_extension("enc-tmp");
+        let _ = std::fs::remove_file(&tmp);
+        let old_count: i64;
+        {
+            let plain = Self::open_plain(path)?;
+            old_count = plain
+                .conn
+                .query_row("SELECT count(*) FROM accounts", [], |r| r.get(0))
+                .unwrap_or(0);
+            let key_hex: String = {
+                let key = crate::crypto::derive_key("sqlcipher");
+                key.iter().map(|b| format!("{b:02x}")).collect()
+            };
+            // 注意:不能用 SELECT user_version FROM main——SQLCipher 连接上返回假 0,
+            // 必须用 PRAGMA main.user_version 读取
+            let user_version: i64 = plain
+                .conn
+                .query_row("PRAGMA main.user_version", [], |r| r.get(0))
+                .unwrap_or(0);
+            plain.conn.execute_batch(&format!(
+                "ATTACH DATABASE '{}' AS enc KEY \"x'{}'\";
+                 SELECT sqlcipher_export('enc');",
+                tmp.display(),
+                key_hex
+            ))?;
+            plain.conn.execute_batch(&format!("PRAGMA enc.user_version = {user_version};"))?;
+            let uv_after: i64 = plain
+                .conn
+                .query_row("PRAGMA enc.user_version", [], |r| r.get(0))
+                .unwrap_or(-1);
+            if uv_after != user_version {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(err(format!(
+                    "加密迁移失败:user_version 写入不生效(期望 {user_version},实际 {uv_after})"
+                )));
+            }
+        }
+
+        // 校验:新库能用密钥打开且账号数一致
+        {
+            let conn = Connection::open(&tmp)?;
+            conn.execute_batch(&crate::crypto::sqlcipher_key_pragma())?;
+            let new_count: i64 = conn
+                .query_row("SELECT count(*) FROM accounts", [], |r| r.get(0))
+                .map_err(|e| err(format!("加密迁移校验失败:{e}")))?;
+            if new_count != old_count {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(err(format!(
+                    "加密迁移校验失败:账号数不一致(旧 {old_count}/新 {new_count})"
+                )));
+            }
+        }
+
+        // 换名并删除明文原件(校验已通过,明文备份不应保留)
+        let bak = path.with_extension("plain-bak");
+        std::fs::rename(path, &bak)?;
+        std::fs::rename(&tmp, path)?;
+        std::fs::remove_file(&bak)?;
+        for suffix in ["-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{}", path.display(), suffix));
+        }
+        Ok(())
     }
 
     fn migrate(&self) -> AppResult<()> {
