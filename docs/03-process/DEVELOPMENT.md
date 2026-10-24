@@ -43,9 +43,10 @@
 1. ROADMAP 当前版本验收门槛全部通过。
 2. 更新日志定稿：`04-changelog/v<版本号>.md` 补发布日期；随后新建下一开发版本的日志文件，并在 `04-changelog/README.md` 版本目录登记。
 3. 版本号同步三处并保持一致：`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`package.json`。
-4. 打 tag：`v<版本号>`，例如 `v0.1.0`。
-5. 打包与签名按 M4 阶段确定的平台策略执行。
-6. 发布完成后按第 9 节执行构建产物清理，安装包先转移归档再清理。
+4. 提交后打 tag 并推送：`git tag v<版本号> && git push origin v<版本号>`。
+5. GitHub Actions「Release」流水线自动构建 macOS（Apple Silicon / Intel）dmg，创建 GitHub Release 并附安装包与 `latest.json` 在线更新源（签名私钥存于仓库 Secrets `TAURI_SIGNING_PRIVATE_KEY`）。
+6. Release 页核对产物；应用内「设置 → 检查更新」验证在线更新链路。
+7. CI（main push / PR）自动运行：前端 build + test（ubuntu）、Rust test（macOS），全绿才允许合入的约定依赖分支保护按需开启。
 
 ## 5. 文档同步规则（合入前完成）
 

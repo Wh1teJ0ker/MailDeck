@@ -41,7 +41,7 @@ jobs:
 
       - uses: swatinem/rust-cache@v2
         with:
-          workdir: src-tauri
+          workspaces: src-tauri
 
       - name: Run tests
         working-directory: src-tauri
