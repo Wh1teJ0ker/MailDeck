@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AccountDto,
+  AppSettingsDto,
   BodyDto,
+  CredentialSwitchResultDto,
   MailboxDto,
   MailboxUnreadDto,
   MessageDto,
@@ -73,6 +75,11 @@ export const api = {
     invoke<number>("mark_all_seen", { mailboxId }),
 
   unreadCounts: () => invoke<MailboxUnreadDto[]>("unread_counts"),
+
+  getAppSettings: () => invoke<AppSettingsDto>("get_app_settings"),
+
+  setCredentialStore: (mode: string) =>
+    invoke<CredentialSwitchResultDto>("set_credential_store", { mode }),
 
   // 设置:检查更新与在线更新
   appVersion: () => invoke<string>("app_version"),

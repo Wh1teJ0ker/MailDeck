@@ -23,14 +23,34 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [installing, setInstalling] = useState(false);
   const [info, setInfo] = useState<UpdateInfoDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [credStore, setCredStore] = useState<string | null>(null);
+  const [switchingCred, setSwitchingCred] = useState(false);
 
   useEffect(() => {
     if (open) {
       setInfo(null);
       setError(null);
       api.appVersion().then(setVersion).catch(() => setVersion(""));
+      api.getAppSettings().then((s) => setCredStore(s.credential_store)).catch(() => setCredStore("keyring"));
     }
   }, [open]);
+
+  const handleCredStoreChange = async (mode: string) => {
+    setSwitchingCred(true);
+    try {
+      const r = await api.setCredentialStore(mode);
+      setCredStore(mode);
+      if (r.failed.length > 0) {
+        message.warning(t("settings.credMigrateFailed", { n: r.failed.length }));
+      } else {
+        message.success(t("settings.credSwitched", { n: r.migrated }));
+      }
+    } catch (e) {
+      message.error(String(e));
+    } finally {
+      setSwitchingCred(false);
+    }
+  };
 
   const handleCheck = async () => {
     setChecking(true);
@@ -114,6 +134,27 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           </Typography.Text>
         </div>
       </div>
+
+      {/* 安全:凭证存储方式 */}
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        {t("settings.security")}
+      </Typography.Text>
+      <div style={{ margin: "8px 0 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ width: 64, flexShrink: 0 }}>{t("settings.credentialStore")}</span>
+        <Select
+          value={credStore ?? "keyring"}
+          onChange={(v) => handleCredStoreChange(v)}
+          loading={switchingCred}
+          style={{ width: 240 }}
+          options={[
+            { value: "keyring", label: t("settings.credKeyring") },
+            { value: "file", label: t("settings.credFile") },
+          ]}
+        />
+      </div>
+      {credStore === "file" && (
+        <Alert type="warning" showIcon style={{ marginBottom: 20 }} message={t("settings.credFileWarning")} />
+      )}
 
       {/* 版本与更新 */}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>

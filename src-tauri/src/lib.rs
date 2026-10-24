@@ -1,3 +1,4 @@
+pub mod app_settings;
 pub mod commands;
 pub mod credentials;
 pub mod error;
@@ -19,7 +20,7 @@ pub fn run() {
             let db_path = dir.join("maildeck.db");
             // 启动即打开一次:确保迁移完成后再对外服务
             let _ = store::Store::open(&db_path)?;
-            app.manage(state::AppState { db_path });
+            app.manage(state::AppState { db_path, app_dir: dir });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -37,6 +38,8 @@ pub fn run() {
             commands::set_seen,
             commands::mark_all_seen,
             commands::unread_counts,
+            commands::get_app_settings,
+            commands::set_credential_store,
             commands::app_version,
             commands::check_update,
             commands::install_update,

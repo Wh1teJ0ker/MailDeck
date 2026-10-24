@@ -1,32 +1,87 @@
-//! 授权码仅存于系统凭证库(macOS Keychain),不落普通文件。
-//! 命名规则:service = 应用标识,user = "qq:<邮箱地址>"。
+//! 凭证存储:默认走系统凭证库(keyring,macOS Keychain);
+//! 用户可在设置中显式切换为本地文件模式(明文 JSON,权限 600,风险自担)。
+//! 两种模式 API 一致,由 CredentialMode 分发。
 
-use crate::error::AppResult;
+use std::path::Path;
+
 use keyring::Entry;
 
-const SERVICE: &str = "com.maildeck.desktop";
+use crate::app_settings::CredentialMode;
+use crate::error::AppResult;
 
-fn entry(email: &str) -> AppResult<Entry> {
+const SERVICE: &str = "com.maildeck.desktop";
+const FILE_NAME: &str = "credentials.json";
+
+fn keyring_entry(email: &str) -> AppResult<Entry> {
     Ok(Entry::new(SERVICE, &format!("qq:{email}"))?)
 }
 
-pub fn save_auth_code(email: &str, code: &str) -> AppResult<()> {
-    entry(email)?.set_password(code)?;
+fn file_path(app_dir: &Path) -> PathBuf {
+    app_dir.join(FILE_NAME)
+}
+
+fn read_file_map(app_dir: &Path) -> std::collections::BTreeMap<String, String> {
+    std::fs::read_to_string(file_path(app_dir))
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+fn write_file_map(app_dir: &Path, map: &std::collections::BTreeMap<String, String>) -> AppResult<()> {
+    let text = serde_json::to_string_pretty(map)
+        .map_err(|e| crate::error::err(format!("序列化凭证失败:{e}")))?;
+    std::fs::write(file_path(app_dir), text)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(file_path(app_dir), std::fs::Permissions::from_mode(0o600));
+    }
     Ok(())
 }
 
-pub fn load_auth_code(email: &str) -> AppResult<String> {
-    Ok(entry(email)?.get_password()?)
+pub fn save_auth_code(mode: &CredentialMode, app_dir: &Path, email: &str, code: &str) -> AppResult<()> {
+    match mode {
+        CredentialMode::Keyring => keyring_entry(email)?.set_password(code)?,
+        CredentialMode::File => {
+            let mut map = read_file_map(app_dir);
+            map.insert(email.to_string(), code.to_string());
+            write_file_map(app_dir, &map)?;
+        }
+    }
+    Ok(())
 }
 
-pub fn delete_auth_code(email: &str) -> AppResult<()> {
-    let e = entry(email)?;
-    match e.get_password() {
-        Ok(_) => {
-            e.delete_credential()?;
-            Ok(())
-        }
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(other) => Err(other.into()),
+pub fn load_auth_code(mode: &CredentialMode, app_dir: &Path, email: &str) -> AppResult<String> {
+    match mode {
+        CredentialMode::Keyring => Ok(keyring_entry(email)?.get_password()?),
+        CredentialMode::File => read_file_map(app_dir)
+            .get(email)
+            .cloned()
+            .ok_or_else(|| crate::error::err(format!("本地凭证文件中没有 {email} 的授权码"))),
     }
 }
+
+pub fn delete_auth_code(mode: &CredentialMode, app_dir: &Path, email: &str) -> AppResult<()> {
+    match mode {
+        CredentialMode::Keyring => {
+            let e = keyring_entry(email)?;
+            match e.get_password() {
+                Ok(_) => {
+                    e.delete_credential()?;
+                    Ok(())
+                }
+                Err(keyring::Error::NoEntry) => Ok(()),
+                Err(other) => Err(other.into()),
+            }
+        }
+        CredentialMode::File => {
+            let mut map = read_file_map(app_dir);
+            if map.remove(email).is_some() {
+                write_file_map(app_dir, &map)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+use std::path::PathBuf;

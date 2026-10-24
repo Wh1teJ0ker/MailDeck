@@ -4,7 +4,8 @@
 //! 因此所有命令体统一放进 `spawn_blocking + block_on` 的阻塞线程执行,
 //! 对前端而言仍是普通的异步调用。
 
-use crate::error::{err, AppResult};
+use crate::app_settings::{self, AppSettings, CredentialMode};
+use crate::error::{err, AppError, AppResult};
 use crate::state::AppState;
 use crate::store::{self, AccountRow, AttachmentRow};
 use crate::{credentials, mail, provider, sync};
@@ -70,6 +71,7 @@ pub async fn add_account(
     display_name: Option<String>,
     color: Option<String>,
 ) -> AppResult<AccountRow> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         // 先按类型校验:只有注册表中 available 的类型可添加
@@ -100,13 +102,13 @@ pub async fn add_account(
             .filter(|c| c.starts_with('#') && c.len() >= 4)
             .unwrap_or_else(|| "#1677ff".to_string());
 
-        credentials::save_auth_code(&email, &auth_code)?;
+        credentials::save_auth_code(&cred.mode, &cred.dir, &email, &auth_code)?;
 
         let id = db.insert_account(&email, &display, &color, ptype)?;
         let account = db.get_account(id)?;
 
         // 首次同步;失败不影响账号落库,错误展示在账号状态里
-        let _ = sync::sync_account(&db, &account).await;
+        let _ = sync::sync_account(&db, &cred, &account).await;
         Ok(db.get_account(id)?)
     }))
     .await
@@ -140,12 +142,13 @@ pub async fn list_accounts(state: State<'_, AppState>) -> AppResult<Vec<AccountR
 
 #[tauri::command]
 pub async fn remove_account(state: State<'_, AppState>, id: i64) -> AppResult<()> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let account = db.get_account(id)?;
         db.delete_account(id)?;
         drop(db);
-        let _ = credentials::delete_auth_code(&account.email);
+        let _ = credentials::delete_auth_code(&cred.mode, &cred.dir, &account.email);
         Ok(())
     }))
     .await
@@ -186,22 +189,24 @@ pub async fn update_account(
 
 #[tauri::command]
 pub async fn sync_account(state: State<'_, AppState>, id: i64) -> AppResult<SyncOutcomeDto> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let account = db.get_account(id)?;
-        Ok(sync::sync_account(&db, &account).await.into())
+        Ok(sync::sync_account(&db, &cred, &account).await.into())
     }))
     .await
 }
 
 #[tauri::command]
 pub async fn sync_all(state: State<'_, AppState>) -> AppResult<Vec<SyncOutcomeDto>> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let accounts = db.list_accounts()?;
         let mut outcomes = Vec::new();
         for account in accounts.iter().filter(|a| a.enabled) {
-            outcomes.push(sync::sync_account(&db, account).await.into());
+            outcomes.push(sync::sync_account(&db, &cred, account).await.into());
         }
         Ok(outcomes)
     }))
@@ -236,6 +241,7 @@ pub async fn list_messages(
 /// 收件箱内未读邮件在正文成功取得后回写已读(失败记录到邮箱状态,不阻塞阅读)。
 #[tauri::command]
 pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<BodyDto> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let msg = db.get_message(id)?;
@@ -250,7 +256,7 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
         let needs_seen = !msg.seen && mailbox.role == "inbox";
 
         let (text, html) = if needs_fetch || needs_seen {
-            let code = credentials::load_auth_code(&account.email)?;
+            let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
             let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
 
             let out = if needs_fetch {
@@ -302,13 +308,14 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
 
 #[tauri::command]
 pub async fn set_seen(state: State<'_, AppState>, id: i64, seen: bool) -> AppResult<()> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let msg = db.get_message(id)?;
         let mailbox = db.get_mailbox(msg.mailbox_id)?;
         let account = db.get_account(mailbox.account_id)?;
 
-        mark_seen_on_server(&account, &mailbox.name_raw, msg.uid.max(0) as u32, seen).await?;
+        mark_seen_on_server(&cred, &account, &mailbox.name_raw, msg.uid.max(0) as u32, seen).await?;
         db.set_seen_local(id, seen)?;
         Ok(())
     }))
@@ -324,8 +331,69 @@ pub async fn unread_counts(state: State<'_, AppState>) -> AppResult<Vec<store::M
     .await
 }
 
-async fn mark_seen_on_server(account: &AccountRow, mailbox_raw: &str, uid: u32, seen: bool) -> AppResult<()> {
-    let code = credentials::load_auth_code(&account.email)?;
+// ---------- 设置:凭证存储方式 ----------
+
+#[derive(Debug, serde::Serialize)]
+pub struct AppSettingsDto {
+    pub credential_store: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct CredentialSwitchResultDto {
+    pub migrated: u32,
+    pub failed: Vec<String>,
+}
+
+#[tauri::command]
+pub fn get_app_settings(state: State<'_, AppState>) -> AppSettingsDto {
+    let settings_path = state.app_dir.join("settings.json");
+    let s = app_settings::load(&settings_path);
+    AppSettingsDto { credential_store: s.credential_store.as_str().to_string() }
+}
+
+/// 切换凭证存储方式,并把所有已有账号的授权码迁移到新模式。
+/// 单个账号迁移失败不影响其余(记入 failed,授权码留在原处)。
+#[tauri::command]
+pub async fn set_credential_store(
+    state: State<'_, AppState>,
+    mode: String,
+) -> AppResult<CredentialSwitchResultDto> {
+    if mode != "keyring" && mode != "file" {
+        return Err(err("未知的凭证存储方式"));
+    }
+    let new_mode = CredentialMode::from_str(&mode);
+    run_blocking(state.app_dir.clone(), move |app_dir| {
+        Box::pin(async move {
+            let settings_path = app_dir.join("settings.json");
+            let old = app_settings::load(&settings_path);
+            let ctx = app_settings::cred_ctx(&app_dir);
+            let db = store::Store::open(&app_dir.join("maildeck.db"))?;
+
+            let mut migrated = 0u32;
+            let mut failed: Vec<String> = Vec::new();
+            if old.credential_store != new_mode {
+                for account in db.list_accounts()? {
+                    let move_one = (|| async {
+                        let code = credentials::load_auth_code(&old.credential_store, &app_dir, &account.email)?;
+                        credentials::save_auth_code(&new_mode, &app_dir, &account.email, &code)?;
+                        credentials::delete_auth_code(&old.credential_store, &app_dir, &account.email)?;
+                        Ok::<(), AppError>(())
+                    })();
+                    match tauri::async_runtime::block_on(move_one) {
+                        Ok(()) => migrated += 1,
+                        Err(_) => failed.push(account.email),
+                    }
+                }
+            }
+            app_settings::save(&settings_path, &AppSettings { credential_store: new_mode })?;
+            Ok(CredentialSwitchResultDto { migrated, failed })
+        })
+    })
+    .await
+}
+
+async fn mark_seen_on_server(cred: &app_settings::CredCtx, account: &AccountRow, mailbox_raw: &str, uid: u32, seen: bool) -> AppResult<()> {
+    let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
     let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
     provider::qq::set_seen_flag(&mut sess, mailbox_raw, &uid.to_string(), seen).await?;
     provider::qq::logout(sess).await;
@@ -336,6 +404,7 @@ async fn mark_seen_on_server(account: &AccountRow, mailbox_raw: &str, uid: u32, 
 /// 按账号复用连接、按邮箱分组、UID 分块批写;单个账号失败不影响其余账号。
 #[tauri::command]
 pub async fn mark_all_seen(state: State<'_, AppState>, mailbox_id: Option<i64>) -> AppResult<u32> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let rows = db.list_unseen_for_scope(mailbox_id)?;
@@ -357,7 +426,7 @@ pub async fn mark_all_seen(state: State<'_, AppState>, mailbox_id: Option<i64>) 
 
         let mut done: u32 = 0;
         for (account_id, mailboxes) in by_account {
-            match mark_account_seen(&db, account_id, mailboxes).await {
+            match mark_account_seen(&db, &cred, account_id, mailboxes).await {
                 Ok(n) => done += n,
                 Err(e) => {
                     let _ = db.set_account_error(account_id, Some(&e.to_string()));
@@ -372,11 +441,12 @@ pub async fn mark_all_seen(state: State<'_, AppState>, mailbox_id: Option<i64>) 
 /// 单账号的一键已读:一次连接,逐邮箱分块批写。
 async fn mark_account_seen(
     db: &store::Store,
+    cred: &app_settings::CredCtx,
     account_id: i64,
     mailboxes: std::collections::BTreeMap<i64, Vec<(i64, u32)>>,
 ) -> AppResult<u32> {
     let account = db.get_account(account_id)?;
-    let code = credentials::load_auth_code(&account.email)?;
+    let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
     let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
 
     let mut done: u32 = 0;

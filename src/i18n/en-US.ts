@@ -80,6 +80,13 @@ export default {
 
   "settings.title": "Settings",
   "settings.general": "General",
+  "settings.security": "Security",
+  "settings.credentialStore": "Credential storage",
+  "settings.credKeyring": "System keychain (recommended)",
+  "settings.credFile": "Local file (plaintext, not recommended)",
+  "settings.credFileWarning": "Auth codes are stored as plaintext JSON in the app data directory (file mode 600). Only use where the system keychain is unavailable.",
+  "settings.credSwitched": "Switched. Migrated {n} account(s)",
+  "settings.credMigrateFailed": "{n} account(s) failed to migrate; their codes remain in the old store",
   "settings.language": "Language",
   "settings.accent": "Accent color",
   "settings.version": "Version",

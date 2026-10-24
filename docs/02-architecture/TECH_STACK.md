@@ -91,7 +91,7 @@
 | HTML 清理 | ammonia | 白名单式清理，剥除脚本/iframe/事件属性；保留邮件 CSS（<style> 与 style 属性，外联由 iframe 沙箱 + CSP 阻断）；规则在 M3 结合真实邮件验证 |
 | 数据库 | rusqlite（bundled）+ rusqlite_migration | 单文件嵌入，避免运行时 SQLite 依赖；迁移脚本纳入版本控制 |
 | 全文检索 | SQLite FTS5 + trigram | trigram 支持中文子串匹配；效果在 M1 用真实中文主题数据确认（见第 6 节） |
-| 凭证 | keyring | macOS Keychain 的封装（首发仅 macOS；Windows / Linux 后端后续平台再启用） |
+| 凭证 | keyring + 可选本地文件模式 | 默认系统凭证库（三平台后端均已启用）；设置中可显式切换为本地明文 JSON（权限 600，界面警示），切换时自动迁移全部账号 |
 | Tauri 插件 | updater（已在 v0.1 设置中心引入，更新源待发布前配置）；notification、tray（v0.2 预留） | 对应 ROADMAP 各版本能力 |
 
 ### 4.2 前端侧
@@ -158,6 +158,7 @@
 | 2026-10-24 | 代码托管 GitHub（公开仓库），CI/CD 用 GitHub Actions：发布用 tauri-action 构建 macOS 双架构并产出 Release 与更新源；日常测试按反馈移至本地 `pnpm verify` | 用户要求；更新源由此落定为 GitHub Releases latest.json |
 | 2026-10-25 | 发布矩阵扩展至 Windows / Linux（keyring 三平台后端、targets=all、四 runner 矩阵）；createUpdaterArtifacts 开启，latest.json 与 .sig 产物上线 | 用户要求补全多平台与 CD;首个 tag v0.1.0 已实测全绿 |
 | 2026-10-25 | v0.1.1 新增 163 邮箱适配（授权码 + 登录后 IMAP ID 上报 + UTF-7 文件夹），registry 增加 endpoint 字段，连接收敛为 connect_for 分发 | 用户要求;真实账号冒烟用例就绪待实测 |
+| 2026-10-25 | 凭证存储开放用户选择:默认 keyring(推荐),可显式切换本地明文文件;切换时自动迁移全部账号授权码;设置由后端 settings.json 所有 | 用户要求;同步修订 DEVELOPMENT 安全红线与 PLAN 第 8 节表述 |
 | 2026-10-24 | 样式与组件改用 Ant Design 5（含 @ant-design/icons），弃用 Tailwind CSS + shadcn/ui | 用户偏好成品组件库；信息密集界面开箱即用，中文文档好 |
 
 决策记录只追加不删除；推翻旧决策时在对应行“决策”列标注“已由某日期决策取代”。

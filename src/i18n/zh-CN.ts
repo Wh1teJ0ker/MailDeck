@@ -90,6 +90,13 @@ export default {
   // 设置
   "settings.title": "设置",
   "settings.general": "通用",
+  "settings.security": "安全",
+  "settings.credentialStore": "凭证存储",
+  "settings.credKeyring": "系统凭证库(推荐)",
+  "settings.credFile": "本地文件(明文,不推荐)",
+  "settings.credFileWarning": "授权码将以明文 JSON 保存在本机应用数据目录(文件权限 600)。仅建议在系统凭证库不可用的环境使用。",
+  "settings.credSwitched": "凭证存储已切换,迁移 {n} 个账号",
+  "settings.credMigrateFailed": "有 {n} 个账号迁移失败,授权码保留在原存储中",
   "settings.language": "语言",
   "settings.accent": "主题色",
   "settings.version": "当前版本",

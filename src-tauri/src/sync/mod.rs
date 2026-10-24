@@ -1,6 +1,7 @@
 //! 账号同步:发现邮箱(文件夹)、按邮箱增量拉取邮件头并入库。
 //! MVP 每次同步建立短连接;常驻连接与 IDLE 在后续版本引入。
 
+use crate::app_settings::CredCtx;
 use crate::credentials;
 use crate::mail;
 use crate::provider::{self, MailboxRole};
@@ -121,8 +122,8 @@ fn decode_utf7_segment(seg: &str) -> Option<String> {
 }
 
 /// 同步单个账号:发现邮箱,然后逐个同步收件箱与常用文件夹。
-pub async fn sync_account(store: &Store, account: &crate::store::AccountRow) -> SyncOutcome {
-    match sync_inner(store, account).await {
+pub async fn sync_account(store: &Store, cred: &CredCtx, account: &crate::store::AccountRow) -> SyncOutcome {
+    match sync_inner(store, cred, account).await {
         Ok(n) => SyncOutcome { account_id: account.id, new_messages: n, error: None },
         Err(e) => {
             let msg = e.to_string();
@@ -132,8 +133,8 @@ pub async fn sync_account(store: &Store, account: &crate::store::AccountRow) -> 
     }
 }
 
-async fn sync_inner(store: &Store, account: &crate::store::AccountRow) -> anyhow::Result<usize> {
-    let code = credentials::load_auth_code(&account.email)?;
+async fn sync_inner(store: &Store, cred: &CredCtx, account: &crate::store::AccountRow) -> anyhow::Result<usize> {
+    let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
     let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
 
     // 1. 发现邮箱(LIST),登记进本地库

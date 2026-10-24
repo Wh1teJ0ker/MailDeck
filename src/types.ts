@@ -17,6 +17,15 @@ export interface ProviderDto {
   hint: string;
 }
 
+export interface AppSettingsDto {
+  credential_store: string;
+}
+
+export interface CredentialSwitchResultDto {
+  migrated: number;
+  failed: string[];
+}
+
 export interface UpdateInfoDto {
   available: boolean;
   version: string;

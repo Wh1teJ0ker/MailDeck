@@ -36,6 +36,12 @@ impl From<keyring::Error> for AppError {
     }
 }
 
+impl From<std::io::Error> for AppError {
+    fn from(e: std::io::Error) -> Self {
+        AppError(format!("文件读写错误:{e}"))
+    }
+}
+
 impl From<async_imap::error::Error> for AppError {
     fn from(e: async_imap::error::Error) -> Self {
         AppError(format!("IMAP 错误:{e}"))
