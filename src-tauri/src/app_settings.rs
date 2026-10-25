@@ -37,6 +37,9 @@ pub struct AppSettings {
     /// 玻璃色调:dark / light(与背景解耦,自定义图片时也适用)
     #[serde(default = "default_glass_tone")]
     pub glass_tone: String,
+    /// Google OAuth 客户端 ID(Gmail 适配用;非机密)
+    #[serde(default)]
+    pub gmail_client_id: String,
 }
 
 fn default_background() -> String { "rain".into() }
@@ -48,6 +51,7 @@ impl Default for AppSettings {
             credential_store: CredentialMode::Keyring,
             background: default_background(),
             glass_tone: default_glass_tone(),
+            gmail_client_id: String::new(),
         }
     }
 }
@@ -82,13 +86,15 @@ pub fn valid_glass_tone(s: &str) -> bool {
     matches!(s, "dark" | "light")
 }
 
-/// 凭证上下文:模式 + 本地文件目录,随调用链透传。
+/// 凭证上下文:模式 + 本地文件目录 + OAuth 客户端 ID,随调用链透传。
 #[derive(Debug, Clone)]
 pub struct CredCtx {
     pub mode: CredentialMode,
     pub dir: std::path::PathBuf,
+    pub gmail_client_id: String,
 }
 
 pub fn cred_ctx(app_dir: &Path) -> CredCtx {
-    CredCtx { mode: credential_mode(&app_dir.join("settings.json")), dir: app_dir.to_path_buf() }
+    let s = load(&app_dir.join("settings.json"));
+    CredCtx { mode: s.credential_store, dir: app_dir.to_path_buf(), gmail_client_id: s.gmail_client_id }
 }

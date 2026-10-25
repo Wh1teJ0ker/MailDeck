@@ -83,6 +83,20 @@ pub async fn connect(email: &str, auth_code: &str) -> Result<ImapSession> {
     connect_with(HOST, PORT, email, auth_code, false).await
 }
 
+/// 建立 TLS 连接并返回未认证的 IMAP 客户端(供 XOAUTH2 等自定义认证)。
+pub async fn connect_imaps(host: &str, port: u16) -> Result<async_imap::Client<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>> {
+    let tcp = tokio::net::TcpStream::connect((host, port))
+        .await
+        .with_context(|| format!("连接 {host}:{port} 失败,请检查网络"))?;
+    let server_name = rustls_pki_types::ServerName::try_from(host.to_string())
+        .map_err(|_| anyhow!("主机名非法"))?;
+    let stream = tls_connector()?
+        .connect(server_name, tcp)
+        .await
+        .context("TLS 握手失败")?;
+    Ok(async_imap::Client::new(stream))
+}
+
 /// 拉取单封邮件的完整原始内容。
 /// UID 命令要求先处于选中邮箱状态,这里自行 SELECT,调用方无需关心。
 pub async fn fetch_raw_message(sess: &mut ImapSession, mailbox_raw: &str, uid: u32) -> Result<Vec<u8>> {

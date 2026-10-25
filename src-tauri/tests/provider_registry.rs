@@ -43,7 +43,7 @@ fn meta_lookup_by_type() {
     let outlook = provider::meta("outlook").expect("outlook 应作为预留存在");
     assert!(!outlook.available, "Outlook 预留不可添加");
 
-    assert!(provider::meta("gmail").is_none(), "未登记类型应返回 None");
+    assert!(provider::meta("不存在").is_none(), "未登记类型应返回 None");
     assert!(provider::meta("").is_none());
 }
 

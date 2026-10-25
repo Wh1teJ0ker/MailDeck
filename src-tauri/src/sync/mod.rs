@@ -134,8 +134,7 @@ pub async fn sync_account(store: &Store, cred: &CredCtx, account: &crate::store:
 }
 
 async fn sync_inner(store: &Store, cred: &CredCtx, account: &crate::store::AccountRow) -> anyhow::Result<usize> {
-    let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
-    let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
+    let mut sess = provider::connect_account(cred, &cred.gmail_client_id, account.provider.as_str(), &account.email).await?;
 
     // 1. 发现邮箱(LIST),登记进本地库
     use futures::StreamExt;

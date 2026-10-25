@@ -21,6 +21,7 @@ export interface AppSettingsDto {
   credential_store: string;
   background: string;
   glass_tone: string;
+  gmail_client_id: string;
 }
 
 export interface CredFileStatusDto {

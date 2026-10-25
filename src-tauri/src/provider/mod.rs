@@ -1,6 +1,8 @@
 //! 服务商类型注册表 + IMAP 文件夹分类 + 按服务商分发连接。
 //! 新增服务商时在 REGISTRY 登记(含端点),并在 connect_for 中接线。
 
+pub mod gmail;
+pub mod oauth2;
 pub mod qq;
 
 #[derive(Debug, Clone, Copy, serde::Serialize)]
@@ -39,6 +41,14 @@ pub const REGISTRY: &[ProviderMeta] = &[
         endpoint: Endpoint { host: "imap.163.com", port: 993, requires_id: true },
     },
     ProviderMeta {
+        id: "gmail",
+        name: "Gmail",
+        auth_mode: "OAuth2",
+        available: true,
+        hint: "需要 Google OAuth 客户端(client_id),在设置中填写后浏览器授权",
+        endpoint: Endpoint { host: "imap.gmail.com", port: 993, requires_id: false },
+    },
+    ProviderMeta {
         id: "outlook",
         name: "Outlook",
         auth_mode: "OAuth2",
@@ -56,21 +66,54 @@ pub fn meta(id: &str) -> Option<&'static ProviderMeta> {
     REGISTRY.iter().find(|p| p.id == id)
 }
 
-/// 按服务商建立已认证的 IMAP 会话(含 163 等要求的登录后 ID 上报)。
+/// 按服务商建立已认证的 IMAP 会话。
+/// auth_code 语义随服务商:授权码(QQ/163)或 OAuth2 access token(Gmail)。
 pub async fn connect_for(
     provider_id: &str,
     email: &str,
     auth_code: &str,
 ) -> anyhow::Result<qq::ImapSession> {
     let meta = meta(provider_id).ok_or_else(|| anyhow::anyhow!("未知邮箱类型:{provider_id}"))?;
-    qq::connect_with(
-        meta.endpoint.host,
-        meta.endpoint.port,
-        email,
-        auth_code,
-        meta.endpoint.requires_id,
-    )
-    .await
+    match provider_id {
+        "gmail" => gmail::connect_oauth(email, auth_code).await,
+        _ => {
+            qq::connect_with(
+                meta.endpoint.host,
+                meta.endpoint.port,
+                email,
+                auth_code,
+                meta.endpoint.requires_id,
+            )
+            .await
+        }
+    }
+}
+
+/// OAuth 型服务商判定(Gmail 等;新增 OAuth 服务商在此登记)。
+pub fn is_oauth_provider(provider_id: &str) -> bool {
+    matches!(provider_id, "gmail")
+}
+
+/// 按账号建立会话:密码型读授权码,OAuth 型读 refresh token 并自动续期。
+pub async fn connect_account(
+    cred: &crate::app_settings::CredCtx,
+    gmail_client_id: &str,
+    provider_id: &str,
+    email: &str,
+) -> anyhow::Result<qq::ImapSession> {
+    if is_oauth_provider(provider_id) {
+        if gmail_client_id.is_empty() {
+            return Err(anyhow::anyhow!("未配置 Google OAuth 客户端 ID,请在设置中填写"));
+        }
+        let refresh = crate::credentials::load_auth_code(&cred.mode, &cred.dir, email)
+            .map_err(|e| anyhow::anyhow!("读取 Gmail 凭证失败:{e}"))?;
+        let access = gmail::access_token(gmail_client_id, email, &refresh).await?;
+        gmail::connect_oauth(email, &access).await
+    } else {
+        let code = crate::credentials::load_auth_code(&cred.mode, &cred.dir, email)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        connect_for(provider_id, email, &code).await
+    }
 }
 
 /// 把服务器返回的登录拒绝信息归因为可操作的中文排查清单,

@@ -79,6 +79,13 @@ export const api = {
 
   getAppSettings: () => invoke<AppSettingsDto>("get_app_settings"),
 
+  getGmailClientId: () => invoke<string>("get_gmail_client_id"),
+
+  setGmailClientId: (clientId: string) =>
+    invoke<void>("set_gmail_client_id", { clientId }),
+
+  addAccountGmail: () => invoke<AccountDto>("add_account_gmail"),
+
   setBackground: (mode: string) => invoke<void>("set_background", { mode }),
 
   uploadBackground: (data: number[]) => invoke<void>("upload_background", { data }),

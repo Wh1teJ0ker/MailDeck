@@ -89,10 +89,16 @@ pub async fn add_account(
             return Err(err("该邮箱已添加过,不能重复添加"));
         }
 
-        // 先验证连接与授权码,再落任何本地数据(v0.1 只有 QQ 一种连接实现)
-        let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
-        sess.select(provider::qq::INBOX).await?;
-        provider::qq::logout(sess).await;
+        // 先验证连接再落任何本地数据;Gmail 走 OAuth,其余走授权码
+        if ptype == "gmail" {
+            let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
+            sess.select(provider::qq::INBOX).await?;
+            provider::qq::logout(sess).await;
+        } else {
+            let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
+            sess.select(provider::qq::INBOX).await?;
+            provider::qq::logout(sess).await;
+        }
 
         let display = display_name
             .map(|s| s.trim().to_string())
@@ -424,6 +430,58 @@ pub fn upload_background(state: State<'_, AppState>, data: Vec<u8>) -> AppResult
     Ok(())
 }
 
+// ---------- Gmail(OAuth2) ----------
+
+#[tauri::command]
+pub fn get_gmail_client_id(state: State<'_, AppState>) -> String {
+    app_settings::load(&state.app_dir.join("settings.json")).gmail_client_id
+}
+
+#[tauri::command]
+pub fn set_gmail_client_id(state: State<'_, AppState>, client_id: String) -> AppResult<()> {
+    let settings_path = state.app_dir.join("settings.json");
+    let mut s = app_settings::load(&settings_path);
+    s.gmail_client_id = client_id.trim().to_string();
+    app_settings::save(&settings_path, &s)?;
+    Ok(())
+}
+
+/// Gmail 完整添加流程:浏览器授权 → PKCE 换令牌 → 读取账号地址 →
+/// refresh token 入凭证库 → 建号 → 首次同步。全程一个命令,前端等待即可。
+#[tauri::command]
+pub async fn add_account_gmail(state: State<'_, AppState>) -> AppResult<AccountRow> {
+    let cred = app_settings::cred_ctx(&state.app_dir);
+    let client_id = cred.gmail_client_id.clone();
+    if client_id.is_empty() {
+        return Err(err("请先在设置中填写 Google OAuth 客户端 ID"));
+    }
+    run_blocking(state.app_dir.clone(), move |app_dir| {
+        Box::pin(async move {
+            let (access, refresh, email) = provider::gmail::authorize_and_exchange(&client_id).await?;
+            let email = email.to_lowercase();
+
+            let db = store::Store::open(&app_dir.join("maildeck.db"))?;
+            if db.find_account_by_email(&email)?.is_some() {
+                return Err(err("该邮箱已添加过,不能重复添加"));
+            }
+            credentials::save_auth_code(&cred.mode, &cred.dir, &email, &refresh)?;
+            // access token 入运行期缓存,首次同步直接用
+            provider::gmail::cache_put(
+                &email,
+                &access,
+                std::time::Duration::from_secs(3000),
+            );
+
+            let display = email.split('@').next().unwrap_or("账号").to_string();
+            let id = db.insert_account(&email, &display, "#188038", "gmail")?;
+            let account = db.get_account(id)?;
+            let _ = sync::sync_account(&db, &cred, &account).await;
+            Ok(db.get_account(id)?)
+        })
+    })
+    .await
+}
+
 /// 切换玻璃色调(dark/light),与背景解耦。
 #[tauri::command]
 pub fn set_glass_tone(state: State<'_, AppState>, tone: String) -> AppResult<()> {
@@ -508,8 +566,7 @@ pub async fn set_credential_store(
 }
 
 async fn mark_seen_on_server(cred: &app_settings::CredCtx, account: &AccountRow, mailbox_raw: &str, uid: u32, seen: bool) -> AppResult<()> {
-    let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
-    let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
+    let mut sess = provider::connect_account(&cred, &cred.gmail_client_id, account.provider.as_str(), &account.email).await?;
     provider::qq::set_seen_flag(&mut sess, mailbox_raw, &uid.to_string(), seen).await?;
     provider::qq::logout(sess).await;
     Ok(())
@@ -561,8 +618,7 @@ async fn mark_account_seen(
     mailboxes: std::collections::BTreeMap<i64, Vec<(i64, u32)>>,
 ) -> AppResult<u32> {
     let account = db.get_account(account_id)?;
-    let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
-    let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
+    let mut sess = provider::connect_account(&cred, &cred.gmail_client_id, account.provider.as_str(), &account.email).await?;
 
     let mut done: u32 = 0;
     for (mailbox_id, items) in mailboxes {

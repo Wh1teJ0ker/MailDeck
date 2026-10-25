@@ -25,6 +25,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [credStore, setCredStore] = useState<string | null>(null);
   const [switchingCred, setSwitchingCred] = useState(false);
+  const [gmailId, setGmailId] = useState("");
+  const [savingGmailId, setSavingGmailId] = useState(false);
   const [background, setBackground] = useState<string>("rain");
   const [glassTone, setGlassTone] = useState<string>("dark");
   const [hasCustomBg, setHasCustomBg] = useState(false);
@@ -49,6 +51,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           setBackground(s.background);
           setGlassTone(s.glass_tone);
           setHasCustomBg(s.background === "custom");
+          setGmailId(s.gmail_client_id);
         })
         .catch(() => undefined);
       refreshCredStatus();
@@ -112,6 +115,18 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
       window.dispatchEvent(new CustomEvent("maildeck:background-changed"));
     } catch (e) {
       message.error(String(e));
+    }
+  };
+
+  const handleSaveGmailId = async () => {
+    setSavingGmailId(true);
+    try {
+      await api.setGmailClientId(gmailId);
+      message.success(t("settings.gmailClientIdSaved"));
+    } catch (e) {
+      message.error(String(e));
+    } finally {
+      setSavingGmailId(false);
     }
   };
 
@@ -296,6 +311,24 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
         </>
       )}
+
+      {/* Gmail OAuth */}
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Gmail OAuth
+      </Typography.Text>
+      <div style={{ margin: "8px 0 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ width: 96, flexShrink: 0, fontSize: 12 }}>{t("settings.gmailClientId")}</span>
+        <Input
+          value={gmailId}
+          onChange={(e) => setGmailId(e.target.value)}
+          placeholder={t("settings.gmailClientIdPlaceholder")}
+          style={{ flex: 1 }}
+          allowClear
+        />
+        <Button loading={savingGmailId} onClick={handleSaveGmailId} disabled={!gmailId.trim()}>
+          {t("btn.save")}
+        </Button>
+      </div>
 
       {/* 版本与更新 */}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>

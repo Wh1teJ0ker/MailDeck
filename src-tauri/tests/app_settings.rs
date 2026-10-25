@@ -25,6 +25,7 @@ fn roundtrip_save_and_load() {
             credential_store: maildeck_lib::app_settings::CredentialMode::File,
             background: "custom".into(),
             glass_tone: "light".into(),
+            gmail_client_id: "test-client.apps.googleusercontent.com".into(),
         },
     )
     .unwrap();

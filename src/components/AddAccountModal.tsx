@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { App as AntApp, Alert, ColorPicker, Form, Input, Modal, Radio, Tag, Typography } from "antd";
+import { App as AntApp, Alert, Button, ColorPicker, Form, Input, Modal, Radio, Tag, Typography } from "antd";
 import { api } from "../api";
 import { useT } from "../i18n";
 import { toHexString } from "../utils/color";
@@ -24,6 +24,7 @@ export default function AddAccountModal({ open, onClose, onAdded }: AddAccountMo
   const { message } = AntApp.useApp();
   const t = useT();
   const [submitting, setSubmitting] = useState(false);
+  const [gmailAuthing, setGmailAuthing] = useState(false);
   const [providerType, setProviderType] = useState("qq");
 
   // 邮箱类型来自后端注册表:available 决定能否选择,后续接入新服务商无需改这里
@@ -40,6 +41,24 @@ export default function AddAccountModal({ open, onClose, onAdded }: AddAccountMo
       setSubmitting(false);
     }
   }, [open]);
+
+  const handleGmailAuth = async () => {
+    setGmailAuthing(true);
+    try {
+      const account = await api.addAccountGmail();
+      message.success(t("msg.accountAdded", { name: account.display_name }));
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["unread"] });
+      qc.invalidateQueries({ queryKey: ["messages"] });
+      form.resetFields();
+      onAdded();
+      onClose();
+    } catch (e) {
+      message.error(String(e));
+    } finally {
+      setGmailAuthing(false);
+    }
+  };
 
   const handleFinish = async (values: FormValues) => {
     setSubmitting(true);
@@ -70,11 +89,11 @@ export default function AddAccountModal({ open, onClose, onAdded }: AddAccountMo
       title={t("add.title")}
       open={open}
       onCancel={onClose}
-      onOk={() => form.submit()}
-      confirmLoading={submitting}
-      okText={t("add.ok")}
+      okText={providerType === "gmail" ? t("add.gmailAuth") : t("add.ok")}
       cancelText={t("cancel")}
       okButtonProps={{ disabled: !selected?.available }}
+      confirmLoading={submitting || (providerType === "gmail" && gmailAuthing)}
+      onOk={() => (providerType === "gmail" ? handleGmailAuth() : form.submit())}
       destroyOnClose
     >
       <Form.Item label={t("add.type")} style={{ marginBottom: 12 }}>
@@ -97,7 +116,16 @@ export default function AddAccountModal({ open, onClose, onAdded }: AddAccountMo
         <Alert type="info" showIcon style={{ marginBottom: 16 }} message={selected.hint} />
       )}
 
-      {selected?.available ? (
+      {selected?.available && providerType === "gmail" ? (
+        <>
+          <Alert type="info" showIcon style={{ marginBottom: 16 }} message={t("add.gmailHint")} />
+          <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ color: "#188038" }}>
+            <Form.Item name="color" label={t("add.color")} initialValue="#188038">
+              <ColorPicker />
+            </Form.Item>
+          </Form>
+        </>
+      ) : selected?.available ? (
         <Form form={form} layout="vertical" onFinish={handleFinish} initialValues={{ color: "#1677ff" }}>
           <Form.Item
             name="email"
