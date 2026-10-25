@@ -102,7 +102,7 @@ export default function MessageList() {
           placeholder={t("list.search")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ borderRadius: 10, flex: 1, background: "var(--md-glass)", border: "1px solid var(--md-stroke)", backdropFilter: "blur(20px)" }}
+          style={{ borderRadius: 10, flex: 1, background: "var(--md-glass)", border: "1px solid var(--md-stroke)", backdropFilter: "var(--md-backdrop)", boxShadow: "var(--md-inner-hi)" }}
         />
         <Button
           icon={<ReloadOutlined />}
@@ -167,6 +167,8 @@ export default function MessageList() {
               background: "var(--md-glass)",
               border: "1px solid var(--md-stroke)",
               borderRadius: 12,
+              backdropFilter: "var(--md-backdrop)",
+              boxShadow: "var(--md-inner-hi)",
               marginTop: 8,
             }}
           >
@@ -240,10 +242,12 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
     borderRadius: 12,
     cursor: "pointer",
     background: selected ? GRADIENT : "var(--md-glass)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
+    backdropFilter: "var(--md-backdrop)",
+    WebkitBackdropFilter: "var(--md-backdrop)",
     border: "1px solid var(--md-stroke)",
-    boxShadow: selected ? "var(--md-glow)" : "var(--md-shadow)",
+    boxShadow: selected
+      ? "var(--md-glow)"
+      : "var(--md-inner-hi), 0 8px 24px rgba(0,0,0,0.22)",
     transition: "box-shadow 0.15s ease, transform 0.15s ease",
   };
   return (

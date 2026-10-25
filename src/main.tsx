@@ -30,7 +30,10 @@ function ThemedApp() {
     root.style.setProperty("--md-glass", a.glass);
     root.style.setProperty("--md-glass-strong", a.glassStrong);
     root.style.setProperty("--md-stroke", a.stroke);
-    root.style.setProperty("--md-shadow", "0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,0.35)");
+    // 玻璃配方:强模糊 + 饱和度提升(透过玻璃的色彩更浓),内外双层光
+    root.style.setProperty("--md-backdrop", "blur(42px) saturate(165%)");
+    root.style.setProperty("--md-inner-hi", "inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(255,255,255,0.03)");
+    root.style.setProperty("--md-shadow", "0 1px 0 rgba(255,255,255,0.05) inset, 0 14px 40px rgba(0,0,0,0.38)");
     root.style.setProperty("--md-text", a.dark ? "#e9ebee" : "#262b31");
     root.style.setProperty("--md-text-sub", a.dark ? "#9aa3ad" : "#717a85");
   }, [accentId]);
@@ -46,8 +49,8 @@ function ThemedApp() {
           colorPrimary: a.primary,
           borderRadius: 10,
           colorBgLayout: "transparent",
-          colorBgContainer: a.dark ? "rgba(28,32,38,0.92)" : "rgba(255,255,255,0.96)",
-          colorBgElevated: a.dark ? "rgba(28,32,38,0.95)" : "rgba(255,255,255,0.98)",
+          colorBgContainer: a.dark ? "rgba(30,36,46,0.66)" : "rgba(255,255,255,0.72)",
+          colorBgElevated: a.dark ? "rgba(26,31,39,0.86)" : "rgba(255,255,255,0.9)",
           colorText: a.dark ? "#e9ebee" : "#262b31",
           colorTextSecondary: a.dark ? "#9aa3ad" : "#717a85",
           fontSize: 13,

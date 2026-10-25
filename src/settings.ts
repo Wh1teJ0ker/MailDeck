@@ -34,13 +34,15 @@ export const ACCENTS: Accent[] = [
     primary: "#c7cdd6",
     from: "#454c56",
     to: "#0e1116",
-    bg: "#101318",
+    bg: "#0d1015",
     ambient:
-      "radial-gradient(1100px 620px at 12% -12%, rgba(255,255,255,0.05), transparent 60%)," +
-      "linear-gradient(160deg, rgba(38,44,52,0.35) 0%, transparent 45%, rgba(20,24,30,0.4) 100%)",
-    glass: "rgba(34,39,46,0.72)",
-    glassStrong: "rgba(28,32,38,0.92)",
-    stroke: "rgba(255,255,255,0.14)",
+      "radial-gradient(900px 560px at 15% -8%, rgba(90,120,165,0.40), transparent 62%)," +
+      "radial-gradient(820px 620px at 105% 18%, rgba(56,74,105,0.42), transparent 58%)," +
+      "radial-gradient(760px 700px at 42% 118%, rgba(96,82,120,0.30), transparent 62%)," +
+      "radial-gradient(500px 380px at 78% 68%, rgba(64,84,112,0.22), transparent 65%)",
+    glass: "rgba(30,36,46,0.48)",
+    glassStrong: "rgba(24,29,37,0.66)",
+    stroke: "rgba(255,255,255,0.16)",
   },
   {
     id: "paper",
@@ -49,13 +51,15 @@ export const ACCENTS: Accent[] = [
     primary: "#3a4149",
     from: "#5a636e",
     to: "#2b3138",
-    bg: "#eef0f3",
+    bg: "#e8ebf1",
     ambient:
-      "radial-gradient(1100px 620px at 12% -12%, rgba(255,255,255,0.75), transparent 60%)," +
-      "linear-gradient(160deg, rgba(255,255,255,0.5) 0%, transparent 45%, rgba(190,196,205,0.35) 100%)",
-    glass: "rgba(255,255,255,0.74)",
-    glassStrong: "rgba(255,255,255,0.94)",
-    stroke: "rgba(20,26,34,0.10)",
+      "radial-gradient(900px 560px at 15% -8%, rgba(150,175,230,0.55), transparent 62%)," +
+      "radial-gradient(820px 620px at 105% 18%, rgba(180,160,225,0.42), transparent 58%)," +
+      "radial-gradient(760px 700px at 42% 118%, rgba(140,205,195,0.38), transparent 62%)," +
+      "radial-gradient(500px 380px at 78% 68%, rgba(255,214,170,0.35), transparent 65%)",
+    glass: "rgba(255,255,255,0.55)",
+    glassStrong: "rgba(255,255,255,0.78)",
+    stroke: "rgba(255,255,255,0.75)",
   },
 ];
 

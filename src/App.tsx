@@ -20,6 +20,8 @@ export default function App() {
           position: "absolute",
           inset: 0,
           background: "var(--md-ambient)",
+          filter: "blur(60px)",
+          transform: "scale(1.15)",
           pointerEvents: "none",
         }}
       />
@@ -29,8 +31,9 @@ export default function App() {
           width={244}
           style={{
             background: "var(--md-glass)",
-            backdropFilter: "blur(28px)",
-            WebkitBackdropFilter: "blur(28px)",
+            backdropFilter: "var(--md-backdrop)",
+            WebkitBackdropFilter: "var(--md-backdrop)",
+            boxShadow: "var(--md-inner-hi)",
             borderRight: "1px solid var(--md-stroke)",
             overflow: "hidden",
           }}
