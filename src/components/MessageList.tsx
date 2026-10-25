@@ -6,10 +6,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { api } from "../api";
 import { useT } from "../i18n";
 import { useUiStore } from "../store";
+import { useAppLoadSettings } from "../loadSettings";
 import { GRADIENT, PRIMARY, GLOW } from "../theme";
 import type { MessageDto } from "../types";
 import { formatSender, formatTime } from "../utils/format";
-import SettingsModal from "./SettingsModal";
 
 const PAGE = 100;
 const ROW_HEIGHT = 72;
@@ -18,14 +18,15 @@ export default function MessageList() {
   const qc = useQueryClient();
   const { message } = AntApp.useApp();
   const t = useT();
-  const { mailboxId, unreadOnly, query, selectedId, setUnreadOnly, setQuery, select } = useUiStore();
-  const [limit, setLimit] = useState(PAGE);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { mailboxId, unreadOnly, query, selectedId, setUnreadOnly, setQuery, select, setView } = useUiStore();
+  const { pageSize } = useAppLoadSettings();
+  const [limit, setLimit] = useState<number | null>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
   const { data: messages = [], isLoading, isFetching } = useQuery({
     queryKey: ["messages", { mailboxId, unreadOnly, query, limit }],
-    queryFn: () => api.listMessages({ mailboxId, unreadOnly, query, offset: 0, limit }),
+    queryFn: () => api.listMessages({ mailboxId, unreadOnly, query, offset: 0, limit: limit ?? pageSize }),
+    enabled: limit !== null,
   });
 
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: api.listAccounts });
@@ -40,6 +41,8 @@ export default function MessageList() {
   const accountOf = (id: number) => accounts.find((a) => a.id === id);
   const mailboxOf = (id: number) => allMailboxes.find((b) => b.id === id);
 
+  // pageSize 就绪后再启用列表
+  const effectiveLimit = limit ?? pageSize;
   const virtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement: () => parentRef.current,
@@ -112,7 +115,7 @@ export default function MessageList() {
         />
         <Button
           icon={<SettingOutlined />}
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => setView("settings")}
           title={t("list.settings")}
           style={{ borderRadius: 10 }}
         />
@@ -209,18 +212,17 @@ export default function MessageList() {
         )}
       </div>
 
-      {messages.length >= limit && (
+      {messages.length >= effectiveLimit && (
         <Button
           block
           type="text"
-          onClick={() => setLimit((v) => v + PAGE)}
+          onClick={() => setLimit((v) => (v ?? pageSize) + pageSize)}
           style={{ marginTop: 4, borderRadius: 10 }}
         >
           {t("list.earlier")}
         </Button>
       )}
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
@@ -318,14 +320,17 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
           <span
             style={{
-              display: "inline-block",
-              fontSize: 10.5,
-              lineHeight: "16px",
-              padding: "0 6px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              lineHeight: "18px",
+              padding: "0 7px",
               borderRadius: 6,
-              background: selected ? "rgba(255,255,255,0.2)" : `${color}1a`,
-              color: selected ? "#fff" : color,
-              maxWidth: 120,
+              fontWeight: 600,
+              background: selected ? "rgba(255,255,255,0.25)" : color,
+              color: selected ? "#fff" : "#fff",
+              maxWidth: 140,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",

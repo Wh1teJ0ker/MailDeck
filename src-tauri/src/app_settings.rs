@@ -40,7 +40,16 @@ pub struct AppSettings {
     /// Google OAuth 客户端 ID(Gmail 适配用;非机密)
     #[serde(default)]
     pub gmail_client_id: String,
+    /// 每账号初始同步邮件数上限
+    #[serde(default = "default_sync_limit")]
+    pub sync_limit: u32,
+    /// 列表每次加载更多邮件的数量
+    #[serde(default = "default_page_size")]
+    pub page_size: u32,
 }
+
+fn default_sync_limit() -> u32 { 200 }
+fn default_page_size() -> u32 { 100 }
 
 fn default_background() -> String { "rain".into() }
 fn default_glass_tone() -> String { "dark".into() }
@@ -52,6 +61,8 @@ impl Default for AppSettings {
             background: default_background(),
             glass_tone: default_glass_tone(),
             gmail_client_id: String::new(),
+            sync_limit: default_sync_limit(),
+            page_size: default_page_size(),
         }
     }
 }

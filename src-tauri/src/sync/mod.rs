@@ -7,8 +7,8 @@ use crate::mail;
 use crate::provider::{self, MailboxRole};
 use crate::store::{MailboxRow, NewMessage, Store};
 
-/// 首次同步与单次增量同步的每邮箱邮件数上限。
-pub const SYNC_LIMIT: usize = 200;
+/// 每邮箱同步数量的下限兜底(设置项最小 50)。
+pub const SYNC_LIMIT_MIN: usize = 50;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SyncOutcome {
@@ -122,8 +122,13 @@ fn decode_utf7_segment(seg: &str) -> Option<String> {
 }
 
 /// 同步单个账号:发现邮箱,然后逐个同步收件箱与常用文件夹。
-pub async fn sync_account(store: &Store, cred: &CredCtx, account: &crate::store::AccountRow) -> SyncOutcome {
-    match sync_inner(store, cred, account).await {
+pub async fn sync_account(
+    store: &Store,
+    cred: &CredCtx,
+    account: &crate::store::AccountRow,
+    sync_limit: usize,
+) -> SyncOutcome {
+    match sync_inner(store, cred, account, sync_limit).await {
         Ok(n) => SyncOutcome { account_id: account.id, new_messages: n, error: None },
         Err(e) => {
             let msg = e.to_string();
@@ -133,7 +138,12 @@ pub async fn sync_account(store: &Store, cred: &CredCtx, account: &crate::store:
     }
 }
 
-async fn sync_inner(store: &Store, cred: &CredCtx, account: &crate::store::AccountRow) -> anyhow::Result<usize> {
+async fn sync_inner(
+    store: &Store,
+    cred: &CredCtx,
+    account: &crate::store::AccountRow,
+    sync_limit: usize,
+) -> anyhow::Result<usize> {
     let mut sess = provider::connect_account(cred, &cred.gmail_client_id, account.provider.as_str(), &account.email).await?;
 
     // 1. 发现邮箱(LIST),登记进本地库
@@ -176,7 +186,7 @@ async fn sync_inner(store: &Store, cred: &CredCtx, account: &crate::store::Accou
         if mailbox.role == MailboxRole::Other.as_str() {
             continue;
         }
-        match sync_mailbox(store, &mailbox, &mut sess).await {
+        match sync_mailbox(store, &mailbox, &mut sess, sync_limit).await {
             Ok(n) => total += n,
             Err(e) => {
                 let _ = store.set_mailbox_error(mailbox.id, Some(&e.to_string()));
@@ -195,7 +205,12 @@ async fn sync_inner(store: &Store, cred: &CredCtx, account: &crate::store::Accou
     }
 }
 
-async fn sync_mailbox(store: &Store, mailbox: &MailboxRow, sess: &mut provider::qq::ImapSession) -> anyhow::Result<usize> {
+async fn sync_mailbox(
+    store: &Store,
+    mailbox: &MailboxRow,
+    sess: &mut provider::qq::ImapSession,
+    sync_limit: usize,
+) -> anyhow::Result<usize> {
     use futures::StreamExt;
 
     let selected = sess.select(&mailbox.name_raw).await?;
@@ -220,7 +235,7 @@ async fn sync_mailbox(store: &Store, mailbox: &MailboxRow, sess: &mut provider::
         .await?
         .into_iter()
         .collect();
-    let window = pick_uid_window(&all_uids, base_last, SYNC_LIMIT);
+    let window = pick_uid_window(&all_uids, base_last, sync_limit.max(SYNC_LIMIT_MIN));
 
     if window.is_empty() {
         store.update_mailbox_sync(mailbox.id, Some(uidvalidity), Some(base_last as i64))?;

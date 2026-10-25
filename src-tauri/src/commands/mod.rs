@@ -114,7 +114,8 @@ pub async fn add_account(
         let account = db.get_account(id)?;
 
         // 首次同步;失败不影响账号落库,错误展示在账号状态里
-        let _ = sync::sync_account(&db, &cred, &account).await;
+        let sync_limit = app_settings::load(&path.join("settings.json")).sync_limit.max(50) as usize;
+        let _ = sync::sync_account(&db, &cred, &account, sync_limit).await;
         Ok(db.get_account(id)?)
     }))
     .await
@@ -199,7 +200,8 @@ pub async fn sync_account(state: State<'_, AppState>, id: i64) -> AppResult<Sync
     run_blocking(state.db_path.clone(), move |path| Box::pin(async move {
         let db = store::Store::open(&path)?;
         let account = db.get_account(id)?;
-        Ok(sync::sync_account(&db, &cred, &account).await.into())
+        let sync_limit = app_settings::load(&path.join("settings.json")).sync_limit.max(50) as usize;
+        Ok(sync::sync_account(&db, &cred, &account, sync_limit).await.into())
     }))
     .await
 }
@@ -212,7 +214,8 @@ pub async fn sync_all(state: State<'_, AppState>) -> AppResult<Vec<SyncOutcomeDt
         let accounts = db.list_accounts()?;
         let mut outcomes = Vec::new();
         for account in accounts.iter().filter(|a| a.enabled) {
-            outcomes.push(sync::sync_account(&db, &cred, account).await.into());
+            let sync_limit = app_settings::load(&path.join("settings.json")).sync_limit.max(50) as usize;
+            outcomes.push(sync::sync_account(&db, &cred, account, sync_limit).await.into());
         }
         Ok(outcomes)
     }))
@@ -344,6 +347,8 @@ pub struct AppSettingsDto {
     pub credential_store: String,
     pub background: String,
     pub glass_tone: String,
+    pub sync_limit: u32,
+    pub page_size: u32,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -392,7 +397,30 @@ pub fn get_app_settings(state: State<'_, AppState>) -> AppSettingsDto {
         credential_store: s.credential_store.as_str().to_string(),
         background: s.background.clone(),
         glass_tone: s.glass_tone.clone(),
+        sync_limit: s.sync_limit,
+        page_size: s.page_size,
     }
+}
+
+/// 设置邮件加载数量(初始同步上限 + 列表每次加载数)。
+#[tauri::command]
+pub fn set_mail_load_settings(
+    state: State<'_, AppState>,
+    sync_limit: u32,
+    page_size: u32,
+) -> AppResult<()> {
+    if !(50..=1000).contains(&sync_limit) {
+        return Err(err("初始同步数量需在 50 ~ 1000 之间"));
+    }
+    if !(20..=500).contains(&page_size) {
+        return Err(err("每次加载数量需在 20 ~ 500 之间"));
+    }
+    let settings_path = state.app_dir.join("settings.json");
+    let mut s = app_settings::load(&settings_path);
+    s.sync_limit = sync_limit;
+    s.page_size = page_size;
+    app_settings::save(&settings_path, &s)?;
+    Ok(())
 }
 
 /// 切换内置背景(或 custom:要求已上传过)。
@@ -475,7 +503,8 @@ pub async fn add_account_gmail(state: State<'_, AppState>) -> AppResult<AccountR
             let display = email.split('@').next().unwrap_or("账号").to_string();
             let id = db.insert_account(&email, &display, "#188038", "gmail")?;
             let account = db.get_account(id)?;
-            let _ = sync::sync_account(&db, &cred, &account).await;
+            let sync_limit = app_settings::load(&app_dir.join("settings.json")).sync_limit.max(50) as usize;
+            let _ = sync::sync_account(&db, &cred, &account, sync_limit).await;
             Ok(db.get_account(id)?)
         })
     })

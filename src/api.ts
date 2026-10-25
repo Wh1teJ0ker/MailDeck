@@ -84,6 +84,9 @@ export const api = {
   setGmailClientId: (clientId: string) =>
     invoke<void>("set_gmail_client_id", { clientId }),
 
+  setMailLoadSettings: (syncLimit: number, pageSize: number) =>
+    invoke<void>("set_mail_load_settings", { syncLimit, pageSize }),
+
   addAccountGmail: () => invoke<AccountDto>("add_account_gmail"),
 
   setBackground: (mode: string) => invoke<void>("set_background", { mode }),

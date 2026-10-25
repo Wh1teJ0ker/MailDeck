@@ -8,6 +8,8 @@ import MessageList from "./components/MessageList";
 import MessageReader from "./components/MessageReader";
 import bgRain from "./assets/bg-rain.svg";
 import bgMist from "./assets/bg-mist.svg";
+import SettingsPage from "./components/SettingsPage";
+import { useUiStore } from "./store";
 
 const BUILTIN_BG: Record<string, string> = { rain: bgRain, mist: bgMist };
 
@@ -39,6 +41,7 @@ const GLASS_TONES: Record<string, { panel: string; panelStrong: string; stroke: 
 
 export default function App() {
   const accentId = useSettingsStore((s) => s.accent);
+  const view = useUiStore((s) => s.view);
   // 背景模式与玻璃色调来自后端设置(可自定义图片)
   const [background, setBackground] = useState<string>("rain");
   const [customBg, setCustomBg] = useState<string | null>(null);
@@ -98,7 +101,8 @@ export default function App() {
           backgroundPosition: "center",
         }}
       />
-      <Layout style={{ height: "100vh", background: "transparent", position: "relative", padding: 14, gap: 14 }}>
+      {view === "settings" && <SettingsPage onClose={() => useUiStore.getState().setView("mail")} />}
+      <Layout style={{ height: "100vh", background: "transparent", position: "relative", padding: 14, gap: 14, display: view === "settings" ? "none" : "flex" }}>
         <Layout.Sider
           theme="light"
           width={248}

@@ -22,6 +22,8 @@ export interface AppSettingsDto {
   background: string;
   glass_tone: string;
   gmail_client_id: string;
+  sync_limit: number;
+  page_size: number;
 }
 
 export interface CredFileStatusDto {

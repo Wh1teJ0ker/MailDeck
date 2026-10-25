@@ -14,6 +14,8 @@ fn missing_file_defaults() {
     assert_eq!(s.credential_store.as_str(), "keyring");
     assert_eq!(s.background, "rain");
     assert_eq!(s.glass_tone, "dark");
+    assert_eq!(s.sync_limit, 200);
+    assert_eq!(s.page_size, 100);
 }
 
 #[test]
@@ -26,6 +28,8 @@ fn roundtrip_save_and_load() {
             background: "custom".into(),
             glass_tone: "light".into(),
             gmail_client_id: "test-client.apps.googleusercontent.com".into(),
+            sync_limit: 500,
+            page_size: 50,
         },
     )
     .unwrap();
@@ -33,6 +37,8 @@ fn roundtrip_save_and_load() {
     assert_eq!(s.credential_store.as_str(), "file");
     assert_eq!(s.background, "custom");
     assert_eq!(s.glass_tone, "light");
+    assert_eq!(s.sync_limit, 500);
+    assert_eq!(s.page_size, 50);
 }
 
 #[test]
@@ -42,6 +48,8 @@ fn corrupt_file_falls_back_to_default() {
     let s = app_settings::load(&p);
     assert_eq!(s.background, "rain");
     assert_eq!(s.glass_tone, "dark");
+    assert_eq!(s.sync_limit, 200);
+    assert_eq!(s.page_size, 100);
 }
 
 #[test]

@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { App as AntApp, Alert, Button, Descriptions, Form, Input, Modal, Radio, Select, Space, Typography } from "antd";
+import { App as AntApp, Alert, Button, Descriptions, Form, Input, InputNumber, Modal, Radio, Select, Space, Typography } from "antd";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import { api } from "../api";
 import { useT } from "../i18n";
 import { ACCENTS, getAccent, useSettingsStore } from "../settings";
 import type { UpdateInfoDto } from "../types";
 
-export interface SettingsModalProps {
-  open: boolean;
+export interface SettingsPageProps {
   onClose: () => void;
 }
 
-export default function SettingsModal({ open, onClose }: SettingsModalProps) {
+export default function SettingsPage({ onClose }: SettingsPageProps) {
   const t = useT();
   const { message, modal } = AntApp.useApp();
   const language = useSettingsStore((s) => s.language);
@@ -32,6 +32,11 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [hasCustomBg, setHasCustomBg] = useState(false);
   const [credStatus, setCredStatus] = useState<{ exists: boolean; unlocked: boolean } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [syncLimit, setSyncLimit] = useState(200);
+  const [pageSize, setPageSize] = useState(100);
+  const [savedSyncLimit, setSavedSyncLimit] = useState(200);
+  const [savedPageSize, setSavedPageSize] = useState(100);
+  const [savingLoad, setSavingLoad] = useState(false);
   const [passModalOpen, setPassModalOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<string | null>(null);
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -40,7 +45,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   useEffect(() => {
-    if (open) {
+    {
       setInfo(null);
       setError(null);
       api.appVersion().then(setVersion).catch(() => setVersion(""));
@@ -52,6 +57,10 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           setGlassTone(s.glass_tone);
           setHasCustomBg(s.background === "custom");
           setGmailId(s.gmail_client_id);
+          setSyncLimit(s.sync_limit);
+          setSavedSyncLimit(s.sync_limit);
+          setPageSize(s.page_size);
+          setSavedPageSize(s.page_size);
         })
         .catch(() => undefined);
       refreshCredStatus();
@@ -164,7 +173,27 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   return (
-    <Modal title={t("settings.title")} open={open} onCancel={onClose} footer={null} destroyOnClose>
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "var(--md-panel-strong)",
+        backdropFilter: "var(--md-backdrop)",
+        WebkitBackdropFilter: "var(--md-backdrop)",
+        zIndex: 50,
+        overflow: "auto",
+        padding: "24px 32px 48px",
+      }}
+    >
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={onClose}>
+          {t("settings.back")}
+        </Button>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          {t("settings.title")}
+        </Typography.Title>
+      </div>
       {/* 通用:语言 + 主题色 */}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         {t("settings.general")}
@@ -210,6 +239,73 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {getAccent(accentId).label}
           </Typography.Text>
+        </div>
+      </div>
+
+      {/* 邮件加载 */}
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        {t("settings.mailLoad")}
+      </Typography.Text>
+      <div style={{ margin: "8px 0 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 200, flexShrink: 0 }}>
+            <div>{t("settings.syncLimit")}</div>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              {t("settings.syncLimitTip")}
+            </Typography.Text>
+          </div>
+          <InputNumber
+            min={50}
+            max={1000}
+            step={50}
+            value={syncLimit}
+            onChange={(v) => setSyncLimit(v ?? 200)}
+            style={{ width: 120 }}
+          />
+          <span style={{ fontSize: 12, color: "var(--md-text-sub)" }}>封</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 200, flexShrink: 0 }}>
+            <div>{t("settings.pageSize")}</div>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              {t("settings.pageSizeTip")}
+            </Typography.Text>
+          </div>
+          <InputNumber
+            min={20}
+            max={500}
+            step={20}
+            value={pageSize}
+            onChange={(v) => setPageSize(v ?? 100)}
+            style={{ width: 120 }}
+          />
+          <span style={{ fontSize: 12, color: "var(--md-text-sub)" }}>封</span>
+          <Button
+            type="primary"
+            size="small"
+            loading={savingLoad}
+            disabled={
+              syncLimit === savedSyncLimit &&
+              pageSize === savedPageSize
+            }
+            onClick={async () => {
+              const clampedSync = Math.min(1000, Math.max(50, syncLimit));
+              const clampedPage = Math.min(500, Math.max(20, pageSize));
+              try {
+                await api.setMailLoadSettings(clampedSync, clampedPage);
+                setSavedSyncLimit(clampedSync);
+                setSavedPageSize(clampedPage);
+                setSyncLimit(clampedSync);
+                setPageSize(clampedPage);
+                message.success(t("settings.saved"));
+                window.dispatchEvent(new CustomEvent("maildeck:load-settings-changed"));
+              } catch (e) {
+                message.error(String(e));
+              }
+            }}
+          >
+            {t("btn.save")}
+          </Button>
         </div>
       </div>
 
@@ -385,7 +481,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
         onCancel={() => setUnlockOpen(false)}
         onUnlocked={() => { setUnlockOpen(false); refreshCredStatus(); }}
       />
-    </Modal>
+      </div>
+    </div>
   );
 }
 
