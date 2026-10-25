@@ -87,6 +87,7 @@ fn file_mode_requires_correct_passphrase() {
 }
 
 #[test]
+#[serial]
 fn v1_machine_bound_file_still_readable() {
     // v1(口令功能前)格式:{"v":1,"data":<机器绑定 AES-GCM base64>}
     // 新代码必须兼容读取,不能报"缺少必要字段"

@@ -145,7 +145,19 @@ async fn sync_inner(
     sync_limit: usize,
 ) -> anyhow::Result<usize> {
     let mut sess = provider::connect_account(cred, &cred.gmail_client_id, account.provider.as_str(), &account.email).await?;
+    // 出错也统一 logout,避免连接泄漏
+    let result = sync_discovered(store, cred, account, &mut sess, sync_limit).await;
+    provider::qq::logout(sess).await;
+    result
+}
 
+async fn sync_discovered(
+    store: &Store,
+    cred: &CredCtx,
+    account: &crate::store::AccountRow,
+    sess: &mut provider::qq::ImapSession,
+    sync_limit: usize,
+) -> anyhow::Result<usize> {
     // 1. 发现邮箱(LIST),登记进本地库
     use futures::StreamExt;
     {
@@ -186,7 +198,7 @@ async fn sync_inner(
         if mailbox.role == MailboxRole::Other.as_str() {
             continue;
         }
-        match sync_mailbox(store, &mailbox, &mut sess, sync_limit).await {
+        match sync_mailbox(store, &mailbox, sess, sync_limit).await {
             Ok(n) => total += n,
             Err(e) => {
                 let _ = store.set_mailbox_error(mailbox.id, Some(&e.to_string()));
@@ -197,7 +209,6 @@ async fn sync_inner(
         }
     }
 
-    provider::qq::logout(sess).await;
     let _ = store.update_sync_state(account.id, first_error.as_ref().map(|e| e.to_string()).as_deref());
     match first_error {
         Some(e) => Err(e),

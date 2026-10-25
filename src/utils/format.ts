@@ -27,3 +27,14 @@ export function formatSender(name?: string | null, addr?: string | null): string
   if (addr) return addr;
   return "(未知发件人)";
 }
+
+/** 字节数组 → 图片 data URL;分块转换,避免大图 spread 爆栈。 */
+export function bytesToDataUrl(bytes: number[] | Uint8Array, mime = "image/jpeg"): string {
+  const u8 = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes);
+  const chunk = 0x8000;
+  let binary = "";
+  for (let i = 0; i < u8.length; i += chunk) {
+    binary += String.fromCharCode(...u8.subarray(i, i + chunk));
+  }
+  return `data:${mime};base64,${btoa(binary)}`;
+}

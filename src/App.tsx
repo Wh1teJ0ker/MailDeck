@@ -8,6 +8,7 @@ import MessageList from "./components/MessageList";
 import MessageReader from "./components/MessageReader";
 import bgRain from "./assets/bg-rain.svg";
 import bgMist from "./assets/bg-mist.svg";
+import { bytesToDataUrl } from "./utils/format";
 import SettingsPage from "./components/SettingsPage";
 import { useUiStore } from "./store";
 
@@ -56,7 +57,7 @@ export default function App() {
             api
               .readCustomBackground()
               .then((bytes) => {
-                if (bytes) setCustomBg(`data:image/png;base64,${btoa(String.fromCharCode(...bytes))}`);
+                if (bytes) setCustomBg(bytesToDataUrl(bytes, "image/png"));
               })
               .catch(() => undefined);
           } else {
@@ -78,7 +79,7 @@ export default function App() {
           api
             .readCustomBackground()
             .then((bytes) => {
-              if (bytes) setCustomBg(`data:image/png;base64,${btoa(String.fromCharCode(...bytes))}`);
+              if (bytes) setCustomBg(bytesToDataUrl(bytes, "image/png"));
             })
             .catch(() => undefined);
         }

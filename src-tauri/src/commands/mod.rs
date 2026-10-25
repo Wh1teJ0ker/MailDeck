@@ -4,7 +4,7 @@
 //! 因此所有命令体统一放进 `spawn_blocking + block_on` 的阻塞线程执行,
 //! 对前端而言仍是普通的异步调用。
 
-use crate::app_settings::{self, AppSettings, CredentialMode};
+use crate::app_settings::{self, CredentialMode};
 use crate::error::{err, AppError, AppResult};
 use crate::state::AppState;
 use crate::store::{self, AccountRow, AttachmentRow};
@@ -90,15 +90,9 @@ pub async fn add_account(
         }
 
         // 先验证连接再落任何本地数据;Gmail 走 OAuth,其余走授权码
-        if ptype == "gmail" {
-            let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
-            sess.select(provider::qq::INBOX).await?;
-            provider::qq::logout(sess).await;
-        } else {
-            let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
-            sess.select(provider::qq::INBOX).await?;
-            provider::qq::logout(sess).await;
-        }
+        let mut sess = provider::connect_for(ptype, &email, &auth_code).await?;
+        sess.select(provider::qq::INBOX).await?;
+        provider::qq::logout(sess).await;
 
         let display = display_name
             .map(|s| s.trim().to_string())
@@ -265,8 +259,8 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
         let needs_seen = !msg.seen && mailbox.role == "inbox";
 
         let (text, html) = if needs_fetch || needs_seen {
-            let code = credentials::load_auth_code(&cred.mode, &cred.dir, &account.email)?;
-            let mut sess = provider::connect_for(account.provider.as_str(), &account.email, &code).await?;
+            let mut sess =
+                provider::connect_account(&cred, &cred.gmail_client_id, account.provider.as_str(), &account.email).await?;
 
             let out = if needs_fetch {
                 let raw = provider::qq::fetch_raw_message(&mut sess, &mailbox.name_raw, msg.uid.max(0) as u32).await?;
@@ -276,7 +270,7 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
                 db.set_message_attachment_flag(id, parsed.has_attachment)?;
                 (parsed.text, parsed.html)
             } else {
-                cached.expect("已判定存在缓存")
+                cached.unwrap_or((None, None))
             };
 
             if needs_seen {
@@ -292,7 +286,7 @@ pub async fn open_message(state: State<'_, AppState>, id: i64) -> AppResult<Body
             provider::qq::logout(sess).await;
             out
         } else {
-            cached.expect("已判定存在缓存")
+            cached.unwrap_or((None, None))
         };
 
         let seen_now = db.get_message(id)?.seen;

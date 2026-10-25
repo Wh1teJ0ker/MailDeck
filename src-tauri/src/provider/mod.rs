@@ -107,7 +107,13 @@ pub async fn connect_account(
         }
         let refresh = crate::credentials::load_auth_code(&cred.mode, &cred.dir, email)
             .map_err(|e| anyhow::anyhow!("读取 Gmail 凭证失败:{e}"))?;
-        let access = gmail::access_token(gmail_client_id, email, &refresh).await?;
+        let (access, rotated) = gmail::access_token(gmail_client_id, email, &refresh).await?;
+        // Google 令牌轮换:返回了新 refresh token 时写回凭证库
+        if let Some(new_refresh) = rotated {
+            if new_refresh != refresh {
+                let _ = crate::credentials::save_auth_code(&cred.mode, &cred.dir, email, &new_refresh);
+            }
+        }
         gmail::connect_oauth(email, &access).await
     } else {
         let code = crate::credentials::load_auth_code(&cred.mode, &cred.dir, email)

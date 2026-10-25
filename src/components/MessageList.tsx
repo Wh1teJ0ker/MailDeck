@@ -25,8 +25,14 @@ export default function MessageList() {
 
   const { data: messages = [], isLoading, isFetching } = useQuery({
     queryKey: ["messages", { mailboxId, unreadOnly, query, limit }],
-    queryFn: () => api.listMessages({ mailboxId, unreadOnly, query, offset: 0, limit: limit ?? pageSize }),
-    enabled: limit !== null,
+    queryFn: () =>
+      api.listMessages({
+        mailboxId,
+        unreadOnly,
+        query,
+        offset: 0,
+        limit: limit ?? pageSize,
+      }),
   });
 
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: api.listAccounts });

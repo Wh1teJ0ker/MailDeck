@@ -253,17 +253,27 @@ pub fn cache_clear(email: &str) {
 }
 
 /// 用 refresh token 换新 access token 并入缓存。
-pub async fn refresh_access(client_id: &str, email: &str, refresh_token: &str) -> Result<String> {
+/// 若 Google 返回了新的 refresh_token(令牌轮换),一并返回供调用方写回凭证库。
+pub async fn refresh_access(
+    client_id: &str,
+    email: &str,
+    refresh_token: &str,
+) -> Result<(String, Option<String>)> {
     let tokens = oauth2::refresh_token(TOKEN_ENDPOINT, client_id, refresh_token).await?;
     let ttl = std::time::Duration::from_secs(tokens.expires_in.unwrap_or(3600).saturating_sub(120));
     cache_put(email, &tokens.access_token, ttl);
-    Ok(tokens.access_token)
+    Ok((tokens.access_token, tokens.refresh_token))
 }
 
 /// 拿可用 access token:优先缓存,过期则用 refresh token 续期。
-pub async fn access_token(client_id: &str, email: &str, refresh_token: &str) -> Result<String> {
+/// 返回 (access_token, Option<新 refresh_token>)。
+pub async fn access_token(
+    client_id: &str,
+    email: &str,
+    refresh_token: &str,
+) -> Result<(String, Option<String>)> {
     if let Some(t) = cache_get(email) {
-        return Ok(t);
+        return Ok((t, None));
     }
     refresh_access(client_id, email, refresh_token).await
 }
