@@ -65,6 +65,22 @@ function ThemedApp() {
   );
 }
 
+// 前端崩溃浮层:Tauri 窗口里黑屏时可见错误内容,便于诊断
+function showFatal(title: string, msg: string) {
+  const el = document.createElement("pre");
+  el.style.cssText =
+    "position:fixed;top:0;left:0;right:0;z-index:99999;margin:0;background:#5c1010;color:#fff;" +
+    "padding:12px 16px;font-size:12px;line-height:1.6;white-space:pre-wrap;max-height:45vh;overflow:auto";
+  el.textContent = `${title}\n${msg}`;
+  document.body.appendChild(el);
+}
+window.addEventListener("error", (e) =>
+  showFatal("JS Error", `${e.message}\n${e.filename || ""}:${e.lineno || ""}`)
+);
+window.addEventListener("unhandledrejection", (e) =>
+  showFatal("Unhandled Rejection", String(e.reason))
+);
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemedApp />
