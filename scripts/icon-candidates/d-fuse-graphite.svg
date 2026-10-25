@@ -1,4 +1,5 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="230" fill="#ffffff"/>
   <defs>
     <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#454c56"/><stop offset="0.55" stop-color="#22272e"/><stop offset="1" stop-color="#0e1116"/>
@@ -11,11 +12,11 @@
     </filter>
   </defs>
   <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 330 684 L 330 364 L 512 588 L 694 364 L 694 684" stroke="#ffffff" stroke-opacity="0.95" stroke-width="116"/>
+    <path d="M 292 704 L 292 320 L 512 560 L 732 320 L 732 704" stroke="#ffffff" stroke-opacity="0.95" stroke-width="116"/>
     <g filter="url(#ds)">
-      <path d="M 330 684 L 330 364 L 512 588 L 694 364 L 694 684" stroke="url(#ink)" stroke-width="100"/>
+      <path d="M 292 704 L 292 320 L 512 560 L 732 320 L 732 704" stroke="url(#ink)" stroke-width="100"/>
     </g>
-    <path d="M 330 684 L 330 364 L 512 588 L 694 364 L 694 684" stroke="url(#gloss)" stroke-width="100"/>
-    <circle cx="512" cy="588" r="10" fill="#ffffff" opacity="0.85"/>
+    <path d="M 292 704 L 292 320 L 512 560 L 732 320 L 732 704" stroke="url(#gloss)" stroke-width="100"/>
+    <circle cx="512" cy="560" r="10" fill="#ffffff" opacity="0.85"/>
   </g>
 </svg>
