@@ -1,0 +1,29 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f9dff"/><stop offset="0.55" stop-color="#2a6bef"/><stop offset="1" stop-color="#1246c8"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.5" stop-color="#f4f8ff" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#dbe7ff" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="flap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d8bfd"/><stop offset="1" stop-color="#1554e0"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blurS" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
+    <clipPath id="envClip"><rect x="232" y="352" width="560" height="324" rx="46"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <ellipse cx="512" cy="120" rx="560" ry="300" fill="url(#sheen)" opacity="0.55"/>
+  <g filter="url(#blurS)" opacity="0.45"><rect x="232" y="372" width="560" height="324" rx="46" fill="#0a2a7a"/></g>
+  <rect x="232" y="352" width="560" height="324" rx="46" fill="url(#glass)"/>
+  <g clip-path="url(#envClip)">
+    <path d="M 258 378 L 512 540 L 766 378" fill="none" stroke="url(#flap)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <rect x="246" y="366" width="532" height="296" rx="36" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="6"/>
+  <circle cx="712" cy="432" r="7" fill="#1246c8" opacity="0.9"/>
+</svg>

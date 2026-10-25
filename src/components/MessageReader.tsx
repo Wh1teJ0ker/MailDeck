@@ -87,13 +87,16 @@ export default function MessageReader() {
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
-        background: "#fff",
-        borderRadius: 12,
+        background: "var(--md-glass-strong)",
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+        border: "1px solid var(--md-stroke)",
+        borderRadius: 14,
         overflow: "hidden",
       }}
     >
       {/* 头部 */}
-      <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid #f0f0f2" }}>
+      <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--md-stroke)" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           <Avatar
             shape="square"
@@ -193,7 +196,7 @@ export default function MessageReader() {
               width: "100%",
               height: "100%",
               border: "none",
-              borderRadius: 8,
+              borderRadius: 10,
               background: "#fff",
             }}
           />
@@ -210,7 +213,7 @@ export default function MessageReader() {
               height: "100%",
               overflow: "auto",
               boxSizing: "border-box",
-              background: "#fafafc",
+              background: "rgba(255,255,255,0.03)",
               borderRadius: 8,
             }}
           >
@@ -236,8 +239,9 @@ function ReaderCard({ children }: { children: React.ReactNode }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#fff",
-        borderRadius: 12,
+        background: "var(--md-glass)",
+        border: "1px solid var(--md-stroke)",
+        borderRadius: 14,
       }}
     >
       {children}

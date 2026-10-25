@@ -182,7 +182,7 @@ export default function AccountSidebar() {
         borderRadius: 10,
         cursor: "pointer",
         marginBottom: 2,
-        color: active ? "#fff" : "#3d3d44",
+        color: active ? "#fff" : "#d5dade",
         fontWeight: active ? 600 : 400,
         fontSize: indent ? 13 : undefined,
         background: active ? GRADIENT : undefined,
@@ -212,6 +212,7 @@ export default function AccountSidebar() {
             height: 36,
             borderRadius: 10,
             background: GRADIENT,
+            border: "1px solid rgba(255,255,255,0.35)",
             boxShadow: GLOW,
             display: "flex",
             alignItems: "center",
@@ -232,7 +233,7 @@ export default function AccountSidebar() {
       </div>
 
       {/* 智能视图 */}
-      <div style={{ padding: "0 8px 4px", fontSize: 11, color: "#a0a0a8" }}>{t("group.views")}</div>
+      <div style={{ padding: "0 8px 4px", fontSize: 11, color: "#8b939d" }}>{t("group.views")}</div>
       {navItem(
         "all",
         mailboxId === null && !unreadOnly,
@@ -263,7 +264,7 @@ export default function AccountSidebar() {
           alignItems: "center",
           padding: "12px 8px 6px",
           fontSize: 11,
-          color: "#a0a0a8",
+          color: "#8b939d",
         }}
       >
         {t("group.accounts")}
@@ -275,7 +276,7 @@ export default function AccountSidebar() {
           icon={<PlusOutlined />}
           onClick={() => setAddOpen(true)}
           title={t("account.add")}
-          style={{ width: 22, height: 22, minWidth: 22, color: "#8a8a93" }}
+          style={{ width: 22, height: 22, minWidth: 22, color: "#9aa3ad" }}
         />
       </div>
 
@@ -304,7 +305,7 @@ export default function AccountSidebar() {
                   opacity: a.enabled ? 1 : 0.55,
                 }}
               >
-                <span style={{ color: "#8a8a93", fontSize: 10, width: 10 }}>
+                <span style={{ color: "#9aa3ad", fontSize: 10, width: 10 }}>
                   {isOpen ? <DownOutlined /> : <RightOutlined />}
                 </span>
                 <Avatar

@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 /** 界面语言 */
 export type Lang = "zh-CN" | "en-US";
 
-/** 主题色预设:primary 供 AntD token,from/to 组成品牌渐变 */
+/** 主题色预设:石墨玻璃语言,primary 供 AntD token,from/to 组成品牌渐变 */
 export interface Accent {
   id: string;
   label: string;
@@ -14,11 +14,11 @@ export interface Accent {
 }
 
 export const ACCENTS: Accent[] = [
-  { id: "blue", label: "极地蓝", primary: "#1677ff", from: "#3d8bfd", to: "#1554e0" },
-  { id: "teal", label: "青碧", primary: "#0d9488", from: "#2dd4bf", to: "#0f766e" },
-  { id: "violet", label: "鸢尾紫", primary: "#7c5cf5", from: "#9b7bff", to: "#5b3ddc" },
-  { id: "rose", label: "蔷薇", primary: "#e11d63", from: "#fb7185", to: "#be1244" },
+  { id: "graphite", label: "石墨", primary: "#c7cdd6", from: "#454c56", to: "#0e1116" },
+  { id: "teal", label: "青碧", primary: "#14b8a6", from: "#17c0aa", to: "#0c8f80" },
   { id: "amber", label: "琥珀", primary: "#d97706", from: "#fbbf24", to: "#b45309" },
+  { id: "rose", label: "蔷薇", primary: "#e11d63", from: "#fb7185", to: "#be1244" },
+  { id: "azure", label: "天蓝", primary: "#1677ff", from: "#3d8bfd", to: "#1554e0" },
 ];
 
 export interface SettingsState {
@@ -30,7 +30,7 @@ export interface SettingsState {
 
 export const defaultSettings = {
   language: "zh-CN" as Lang,
-  accent: "blue",
+  accent: "graphite",
 };
 
 export function getAccent(id: string): Accent {

@@ -1,0 +1,26 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f9dff"/><stop offset="0.55" stop-color="#2a6bef"/><stop offset="1" stop-color="#1246c8"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.97"/><stop offset="1" stop-color="#dfeaff" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="dot" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f9dff"/><stop offset="1" stop-color="#1246c8"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blurS" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="16"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <ellipse cx="512" cy="120" rx="560" ry="300" fill="url(#sheen)" opacity="0.55"/>
+  <g filter="url(#blurS)" opacity="0.4"><rect x="232" y="380" width="560" height="360" rx="44" fill="#0a2a7a"/></g>
+  <rect x="296" y="272" width="432" height="360" rx="32" fill="url(#card)" opacity="0.55"/>
+  <rect x="264" y="316" width="496" height="360" rx="36" fill="url(#card)" opacity="0.75"/>
+  <rect x="232" y="364" width="560" height="364" rx="40" fill="url(#card)"/>
+  <rect x="250" y="382" width="524" height="328" rx="30" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="5"/>
+  <circle cx="700" cy="456" r="36" fill="url(#dot)"/>
+  <circle cx="700" cy="456" r="36" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="5"/>
+</svg>

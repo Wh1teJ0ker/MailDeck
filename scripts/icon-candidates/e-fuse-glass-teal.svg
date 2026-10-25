@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="frost" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dfe9f2"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17c0aa"/><stop offset="1" stop-color="#0c8f80"/>
+    </linearGradient>
+    <filter id="ds2" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#0a3f38" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#ds2)">
+    <path d="M 330 364 L 330 684 L 694 684 L 694 364" stroke="#2b3540" stroke-opacity="0.9" stroke-width="116"/>
+    <path d="M 330 364 L 330 684 L 694 684 L 694 364" stroke="url(#frost)" stroke-width="100"/>
+    <path d="M 330 364 L 512 588 L 694 364" stroke="url(#teal)" stroke-width="100"/>
+  </g>
+</svg>

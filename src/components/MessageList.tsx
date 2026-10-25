@@ -102,7 +102,7 @@ export default function MessageList() {
           placeholder={t("list.search")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ borderRadius: 10, flex: 1 }}
+          style={{ borderRadius: 10, flex: 1, background: "var(--md-glass)", border: "1px solid var(--md-stroke)", backdropFilter: "blur(20px)" }}
         />
         <Button
           icon={<ReloadOutlined />}
@@ -148,7 +148,7 @@ export default function MessageList() {
           {t("list.markAll")}
         </Button>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: "#8a8a93" }}>{scopeLabel}</span>
+        <span style={{ fontSize: 12, color: "#9aa3ad" }}>{scopeLabel}</span>
         {isFetching && !isLoading && <Spin size="small" />}
       </div>
 
@@ -164,7 +164,8 @@ export default function MessageList() {
         ) : messages.length === 0 ? (
           <div
             style={{
-              background: "#fff",
+              background: "var(--md-glass)",
+              border: "1px solid var(--md-stroke)",
               borderRadius: 12,
               marginTop: 8,
             }}
@@ -238,9 +239,12 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
     padding: "10px 12px",
     borderRadius: 12,
     cursor: "pointer",
-    background: selected ? GRADIENT : "#ffffff",
-    boxShadow: selected ? "0 6px 18px rgba(21,84,224,0.4)" : "0 1px 2px rgba(20,20,40,0.04)",
-    transition: "box-shadow 0.15s ease",
+    background: selected ? GRADIENT : "var(--md-glass)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    border: "1px solid var(--md-stroke)",
+    boxShadow: selected ? "var(--md-glow)" : "var(--md-shadow)",
+    transition: "box-shadow 0.15s ease, transform 0.15s ease",
   };
   return (
     <div style={style} onClick={onClick}>
@@ -263,7 +267,7 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
             style={{
               fontWeight: m.seen ? 500 : 700,
               fontSize: 13,
-              color: selected ? "#fff" : "#26262b",
+              color: selected ? "#fff" : "#e9ebee",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -275,7 +279,7 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
           <span
             style={{
               fontSize: 11,
-              color: selected ? "rgba(255,255,255,0.8)" : "#a0a0a8",
+              color: selected ? "rgba(255,255,255,0.8)" : "#8b939d",
               flexShrink: 0,
             }}
           >
@@ -293,7 +297,7 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
           <span
             style={{
               fontSize: 12.5,
-              color: selected ? "rgba(255,255,255,0.92)" : "#4a4a52",
+              color: selected ? "rgba(255,255,255,0.92)" : "#c3c9d1",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
