@@ -1,6 +1,6 @@
 [package]
 name = "maildeck"
-version = "0.1.0"
+version = "0.1.1"
 description = "MailDeck - 个人多邮箱接收管理桌面工具"
 edition = "2021"
 
