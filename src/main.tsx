@@ -24,12 +24,15 @@ function ThemedApp() {
     root.style.setProperty("--md-gradient", `linear-gradient(135deg, ${a.from} 0%, ${a.to} 100%)`);
     root.style.setProperty("--md-gradient-hover", `linear-gradient(135deg, ${a.from} 0%, ${a.to} 60%)`);
     root.style.setProperty("--md-primary", a.primary);
-    root.style.setProperty("--md-glow", `0 6px 20px rgba(0,0,0,0.45)`);
-    // 石墨玻璃固定 token
-    root.style.setProperty("--md-glass", "rgba(255,255,255,0.055)");
-    root.style.setProperty("--md-glass-strong", "rgba(28,32,38,0.72)");
-    root.style.setProperty("--md-stroke", "rgba(255,255,255,0.12)");
-    root.style.setProperty("--md-shadow", "0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,0.45)");
+    root.style.setProperty("--md-glow", "0 6px 20px rgba(0,0,0,0.35)");
+    root.style.setProperty("--md-base", a.bg);
+    root.style.setProperty("--md-ambient", a.ambient);
+    root.style.setProperty("--md-glass", a.glass);
+    root.style.setProperty("--md-glass-strong", a.glassStrong);
+    root.style.setProperty("--md-stroke", a.stroke);
+    root.style.setProperty("--md-shadow", "0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,0.35)");
+    root.style.setProperty("--md-text", a.dark ? "#e9ebee" : "#262b31");
+    root.style.setProperty("--md-text-sub", a.dark ? "#9aa3ad" : "#717a85");
   }, [accentId]);
 
   const a = getAccent(accentId);
@@ -38,15 +41,15 @@ function ThemedApp() {
     <ConfigProvider
       locale={language === "en-US" ? enUS : zhCN}
       theme={{
-        algorithm: antdTheme.darkAlgorithm,
+        algorithm: a.dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           colorPrimary: a.primary,
           borderRadius: 10,
           colorBgLayout: "transparent",
-          colorBgContainer: "rgba(28,32,38,0.72)",
-          colorBgElevated: "rgba(28,32,38,0.92)",
-          colorText: "#e9ebee",
-          colorTextSecondary: "#9aa3ad",
+          colorBgContainer: a.dark ? "rgba(28,32,38,0.92)" : "rgba(255,255,255,0.96)",
+          colorBgElevated: a.dark ? "rgba(28,32,38,0.95)" : "rgba(255,255,255,0.98)",
+          colorText: a.dark ? "#e9ebee" : "#262b31",
+          colorTextSecondary: a.dark ? "#9aa3ad" : "#717a85",
           fontSize: 13,
         },
       }}

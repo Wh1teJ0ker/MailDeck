@@ -182,7 +182,7 @@ export default function AccountSidebar() {
         borderRadius: 10,
         cursor: "pointer",
         marginBottom: 2,
-        color: active ? "#fff" : "#d5dade",
+        color: active ? "#fff" : "var(--md-text)",
         fontWeight: active ? 600 : 400,
         fontSize: indent ? 13 : undefined,
         background: active ? GRADIENT : undefined,
@@ -233,7 +233,7 @@ export default function AccountSidebar() {
       </div>
 
       {/* 智能视图 */}
-      <div style={{ padding: "0 8px 4px", fontSize: 11, color: "#8b939d" }}>{t("group.views")}</div>
+      <div style={{ padding: "0 8px 4px", fontSize: 11, color: "var(--md-text-sub)" }}>{t("group.views")}</div>
       {navItem(
         "all",
         mailboxId === null && !unreadOnly,
@@ -264,7 +264,7 @@ export default function AccountSidebar() {
           alignItems: "center",
           padding: "12px 8px 6px",
           fontSize: 11,
-          color: "#8b939d",
+          color: "var(--md-text-sub)",
         }}
       >
         {t("group.accounts")}
@@ -276,7 +276,7 @@ export default function AccountSidebar() {
           icon={<PlusOutlined />}
           onClick={() => setAddOpen(true)}
           title={t("account.add")}
-          style={{ width: 22, height: 22, minWidth: 22, color: "#9aa3ad" }}
+          style={{ width: 22, height: 22, minWidth: 22, color: "var(--md-text-sub)" }}
         />
       </div>
 
@@ -305,7 +305,7 @@ export default function AccountSidebar() {
                   opacity: a.enabled ? 1 : 0.55,
                 }}
               >
-                <span style={{ color: "#9aa3ad", fontSize: 10, width: 10 }}>
+                <span style={{ color: "var(--md-text-sub)", fontSize: 10, width: 10 }}>
                   {isOpen ? <DownOutlined /> : <RightOutlined />}
                 </span>
                 <Avatar

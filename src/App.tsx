@@ -19,10 +19,7 @@ export default function App() {
         style={{
           position: "absolute",
           inset: 0,
-          background:
-            "radial-gradient(900px 500px at 8% -10%, rgba(255,255,255,0.07), transparent 60%)," +
-            "radial-gradient(800px 600px at 100% 15%, rgba(120,130,150,0.10), transparent 55%)," +
-            "radial-gradient(700px 700px at 45% 115%, rgba(90,100,120,0.10), transparent 60%)",
+          background: "var(--md-ambient)",
           pointerEvents: "none",
         }}
       />

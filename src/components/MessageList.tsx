@@ -148,7 +148,7 @@ export default function MessageList() {
           {t("list.markAll")}
         </Button>
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 12, color: "#9aa3ad" }}>{scopeLabel}</span>
+        <span style={{ fontSize: 12, color: "var(--md-text-sub)" }}>{scopeLabel}</span>
         {isFetching && !isLoading && <Spin size="small" />}
       </div>
 
@@ -267,7 +267,7 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
             style={{
               fontWeight: m.seen ? 500 : 700,
               fontSize: 13,
-              color: selected ? "#fff" : "#e9ebee",
+              color: selected ? "#fff" : "var(--md-text)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -279,7 +279,7 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
           <span
             style={{
               fontSize: 11,
-              color: selected ? "rgba(255,255,255,0.8)" : "#8b939d",
+              color: selected ? "rgba(255,255,255,0.8)" : "var(--md-text-sub)",
               flexShrink: 0,
             }}
           >
@@ -297,7 +297,7 @@ function MessageCard({ m, color, accountName, selected, onClick }: CardProps) {
           <span
             style={{
               fontSize: 12.5,
-              color: selected ? "rgba(255,255,255,0.92)" : "#c3c9d1",
+              color: selected ? "rgba(255,255,255,0.92)" : "var(--md-text)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",

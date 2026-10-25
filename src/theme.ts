@@ -20,9 +20,9 @@ export const GLASS_STRONG = "var(--md-glass-strong)";
 export const STROKE = "var(--md-stroke)";
 /** 多层卡片投影 */
 export const SHADOW = "var(--md-shadow)";
-/** 主文字色 */
-export const TEXT = "#e9ebee";
-/** 次级文字色 */
-export const TEXT_SUB = "#9aa3ad";
-/** 页面基底(石墨,含弥散光的容器背景色) */
-export const BASE = "#101318";
+/** 主文字色(CSS 变量,随明暗主题) */
+export const TEXT = "var(--md-text)";
+/** 次级文字色(CSS 变量) */
+export const TEXT_SUB = "var(--md-text-sub)";
+/** 页面基底(CSS 变量) */
+export const BASE = "var(--md-base)";

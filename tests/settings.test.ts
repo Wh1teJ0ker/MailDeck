@@ -6,7 +6,7 @@ describe("设置状态(useSettingsStore)", () => {
     useSettingsStore.setState({ ...defaultSettings });
   });
 
-  it("默认:简体中文 + 石墨主题(玻璃设计语言默认)", () => {
+  it("默认:简体中文 + 黑(石墨)主题", () => {
     const s = useSettingsStore.getState();
     expect(s.language).toBe("zh-CN");
     expect(s.accent).toBe("graphite");
@@ -17,20 +17,23 @@ describe("设置状态(useSettingsStore)", () => {
     expect(useSettingsStore.getState().language).toBe("en-US");
   });
 
-  it("切换主题色(仅接受已注册的预设)", () => {
-    useSettingsStore.getState().setAccent("teal");
-    expect(useSettingsStore.getState().accent).toBe("teal");
-    // 未注册的 accent 被忽略
+  it("仅黑白两套主题;切换有效;未注册的忽略", () => {
+    expect(ACCENTS.map((a) => a.id)).toEqual(["graphite", "paper"]);
+    useSettingsStore.getState().setAccent("paper");
+    expect(useSettingsStore.getState().accent).toBe("paper");
     useSettingsStore.getState().setAccent("rainbow");
-    expect(useSettingsStore.getState().accent).toBe("teal");
+    expect(useSettingsStore.getState().accent).toBe("paper");
   });
 
-  it("主题色预设齐全且字段完整", () => {
-    expect(ACCENTS.length).toBeGreaterThanOrEqual(4);
+  it("两套主题的 token 字段完整(可驱动明暗切换)", () => {
     for (const a of ACCENTS) {
       expect(a.primary).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(a.from).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(a.to).toMatch(/^#[0-9a-fA-F]{6}$/);
+      expect(a.dark).toBeTypeOf("boolean");
+      expect(a.bg).toMatch(/^#/);
+      expect(a.glass).toMatch(/^rgba/);
+      expect(a.stroke).toMatch(/^rgba/);
       expect(a.label.length).toBeGreaterThan(0);
     }
   });
