@@ -95,7 +95,7 @@ pub fn encrypt_b64(plaintext: &[u8]) -> String {
 
 /// 解密 encrypt_b64 的输出;损坏/密钥不匹配返回 None
 pub fn decrypt_b64(data: &str) -> Option<Vec<u8>> {
-    use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
+    use aes_gcm::aead::{Aead, KeyInit};
     use base64::Engine;
     let packed = base64::engine::general_purpose::STANDARD.decode(data).ok()?;
     if packed.len() < 12 {
@@ -105,4 +105,77 @@ pub fn decrypt_b64(data: &str) -> Option<Vec<u8>> {
     let key = derive_key(CREDS_KEY_PURPOSE);
     let cipher = aes_gcm::Aes256Gcm::new((&key).into());
     cipher.decrypt(nonce.into(), ct).ok()
+}
+
+// ---------- 凭证文件的用户口令模式 ----------
+// 密钥由用户口令 + 随机盐经 PBKDF2 派生;本地只存盐与验证块(加密的全零),
+// 不存密钥本身。文件离开本机且没有口令时不可解密。
+
+const PBKDF2_ITERATIONS: u32 = 210_000;
+
+pub fn random_salt() -> [u8; 16] {
+    use aes_gcm::aead::OsRng;
+    use rand::RngCore;
+    let mut salt = [0u8; 16];
+    OsRng.fill_bytes(&mut salt);
+    salt
+}
+
+/// PBKDF2-HMAC-SHA256(口令, 盐) → 32 字节密钥
+pub fn derive_key_from_passphrase(passphrase: &str, salt: &[u8]) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    pbkdf2::pbkdf2_hmac::<sha2::Sha256>(
+        passphrase.as_bytes(),
+        salt,
+        PBKDF2_ITERATIONS,
+        &mut out,
+    );
+    out
+}
+
+/// 验证块:用派生密钥加密 16 字节全零(nonce ‖ 密文)。本地只存它,不存密钥。
+pub fn make_verifier(passphrase: &str, salt: &[u8]) -> Vec<u8> {
+    encrypt_with_key(&derive_key_from_passphrase(passphrase, salt), &[0u8; 16])
+}
+
+/// 校验口令:能解出全零即正确。
+pub fn verify_passphrase(passphrase: &str, salt: &[u8], verifier: &[u8]) -> bool {
+    decrypt_with_key(&derive_key_from_passphrase(passphrase, salt), verifier)
+        .map(|p| p == [0u8; 16])
+        .unwrap_or(false)
+}
+
+fn encrypt_with_key(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
+    use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
+    let cipher = aes_gcm::Aes256Gcm::new(key.into());
+    let nonce = aes_gcm::Aes256Gcm::generate_nonce(&mut OsRng);
+    let ct = cipher.encrypt(&nonce, plaintext).expect("AES-GCM 加密不会失败");
+    let mut packed = nonce.to_vec();
+    packed.extend_from_slice(&ct);
+    packed
+}
+
+fn decrypt_with_key(key: &[u8; 32], packed: &[u8]) -> Option<Vec<u8>> {
+    use aes_gcm::aead::{Aead, KeyInit};
+    if packed.len() < 12 {
+        return None;
+    }
+    let (nonce, ct) = packed.split_at(12);
+    let cipher = aes_gcm::Aes256Gcm::new(key.into());
+    cipher.decrypt(nonce.into(), ct).ok()
+}
+
+/// 用口令派生密钥加密,输出 base64(nonce ‖ 密文)——凭证文件体
+pub fn encrypt_b64_with_passphrase(passphrase: &str, salt: &[u8], plaintext: &[u8]) -> String {
+    use base64::Engine;
+    let key = derive_key_from_passphrase(passphrase, salt);
+    base64::engine::general_purpose::STANDARD.encode(encrypt_with_key(&key, plaintext))
+}
+
+/// 解密上一函数的输出;口令错误/损坏返回 None
+pub fn decrypt_b64_with_passphrase(passphrase: &str, salt: &[u8], data: &str) -> Option<Vec<u8>> {
+    use base64::Engine;
+    let packed = base64::engine::general_purpose::STANDARD.decode(data).ok()?;
+    let key = derive_key_from_passphrase(passphrase, salt);
+    decrypt_with_key(&key, &packed)
 }

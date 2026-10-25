@@ -1,20 +1,27 @@
-//! 凭证存储测试:keyring(真实钥匙串,手动)与本地文件模式(自动)。
+//! 凭证存储测试:keyring(真实钥匙串,手动)与本地口令加密文件模式(自动)。
 //! 运行:
-//!   cargo test --test credentials            # 只跑文件模式
+//!   cargo test --test credentials               # 只跑文件模式
 //!   cargo test --test credentials -- --ignored  # 额外跑 keyring 真实钥匙串
+
+use serial_test::serial;
 
 use maildeck_lib::app_settings::CredentialMode;
 use maildeck_lib::credentials;
 use std::path::PathBuf;
 
+const TEST_PASS: &str = "测试口令-abc123";
+
 fn file_store() -> (CredentialMode, PathBuf) {
     let dir = std::env::temp_dir().join(format!("maildeck-creds-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    // 文件模式需要口令:设置运行期口令(测试进程内)
+    credentials::set_runtime_passphrase(Some(TEST_PASS.to_string()));
     (CredentialMode::File, dir)
 }
 
 #[test]
+#[serial]
 fn file_mode_roundtrip_and_delete() {
     let (mode, path) = file_store();
 
@@ -46,11 +53,36 @@ fn file_mode_roundtrip_and_delete() {
     // 删除不存在的条目是幂等的
     credentials::delete_auth_code(&mode, &path, "a@163.com").unwrap();
 
-    // 落盘内容必须加密:文件里不能直接搜到授权码
+    // 落盘内容必须加密:文件里不能直接搜到授权码或口令
     let bytes = std::fs::read(path.join("credentials.json")).unwrap();
-    assert!(
-        !bytes.windows(8).any(|w| w == b"code-abc" || w == b"code-xyz" || w == b"code-b"),
-        "凭证文件不应包含明文授权码"
+    for needle in ["code-abc".as_bytes(), "code-xyz".as_bytes(), "code-b".as_bytes(), TEST_PASS.as_bytes()] {
+        assert!(
+            !bytes.windows(needle.len().max(1)).any(|w| w == needle),
+            "凭证文件不应包含明文授权码或口令"
+        );
+    }
+}
+
+#[test]
+#[serial]
+fn file_mode_requires_correct_passphrase() {
+    let (mode, path) = file_store();
+    credentials::save_auth_code(&mode, &path, "x@qq.com", "code-x").unwrap();
+
+    // 错误口令:能检测到文件存在但解不开
+    let bad = credentials::read_file_map_pub(&path, "错误口令!");
+    assert!(bad.is_err(), "错误口令必须被验证块拒绝");
+
+    // 未解锁(无运行期口令):明确报错而不是返回空数据
+    credentials::set_runtime_passphrase(None);
+    let locked = credentials::load_auth_code(&mode, &path, "x@qq.com");
+    assert!(locked.is_err());
+
+    // 正确口令解锁后恢复正常
+    credentials::set_runtime_passphrase(Some(TEST_PASS.to_string()));
+    assert_eq!(
+        credentials::load_auth_code(&mode, &path, "x@qq.com").unwrap(),
+        "code-x"
     );
 }
 

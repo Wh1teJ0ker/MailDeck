@@ -21,6 +21,11 @@ export interface AppSettingsDto {
   credential_store: string;
 }
 
+export interface CredFileStatusDto {
+  exists: boolean;
+  unlocked: boolean;
+}
+
 export interface CredentialSwitchResultDto {
   migrated: number;
   failed: string[];

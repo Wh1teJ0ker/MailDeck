@@ -344,6 +344,38 @@ pub struct CredentialSwitchResultDto {
     pub failed: Vec<String>,
 }
 
+// ---------- 凭证口令(文件模式) ----------
+
+#[derive(Debug, serde::Serialize)]
+pub struct CredFileStatusDto {
+    /// 文件是否存在
+    pub exists: bool,
+    /// 是否已在本会话中解锁(口令在内存)
+    pub unlocked: bool,
+}
+
+/// 查询凭证文件状态与解锁状态。
+#[tauri::command]
+pub fn cred_file_status(state: State<'_, AppState>) -> CredFileStatusDto {
+    let exists = state.app_dir.join("credentials.json").exists();
+    CredFileStatusDto { exists, unlocked: credentials::runtime_passphrase().is_some() }
+}
+
+/// 用口令解锁凭证文件(验证块校验);成功后口令驻留内存,本会话免再输。
+#[tauri::command]
+pub fn unlock_cred_file(state: State<'_, AppState>, passphrase: String) -> AppResult<u32> {
+    let path = state.app_dir.join("credentials.json");
+    let map = credentials::read_file_map_pub(&state.app_dir, &passphrase)?;
+    credentials::set_runtime_passphrase(Some(passphrase));
+    Ok(map.len() as u32)
+}
+
+/// 忘记运行期口令(手动锁定)。
+#[tauri::command]
+pub fn lock_cred_file() {
+    credentials::set_runtime_passphrase(None);
+}
+
 #[tauri::command]
 pub fn get_app_settings(state: State<'_, AppState>) -> AppSettingsDto {
     let settings_path = state.app_dir.join("settings.json");
@@ -357,6 +389,7 @@ pub fn get_app_settings(state: State<'_, AppState>) -> AppSettingsDto {
 pub async fn set_credential_store(
     state: State<'_, AppState>,
     mode: String,
+    passphrase: Option<String>,
 ) -> AppResult<CredentialSwitchResultDto> {
     if mode != "keyring" && mode != "file" {
         return Err(err("未知的凭证存储方式"));
@@ -372,17 +405,33 @@ pub async fn set_credential_store(
             let mut migrated = 0u32;
             let mut failed: Vec<String> = Vec::new();
             if old.credential_store != new_mode {
+                // 切到文件模式:先落口令(供文件加解密),切换完成前不落盘设置
+                if new_mode == CredentialMode::File {
+                    let pass = passphrase
+                        .clone()
+                        .ok_or_else(|| err("使用本地加密文件需先设置口令"))?;
+                    if pass.len() < 6 {
+                        return Err(err("口令至少 6 个字符"));
+                    }
+                    credentials::set_runtime_passphrase(Some(pass));
+                }
                 for account in db.list_accounts()? {
-                    let move_one = (|| async {
+                    // 闭包已在阻塞线程上执行,不能嵌套 block_on;凭证三步迁移是纯同步操作
+                    let result = (|| -> AppResult<()> {
                         let code = credentials::load_auth_code(&old.credential_store, &app_dir, &account.email)?;
                         credentials::save_auth_code(&new_mode, &app_dir, &account.email, &code)?;
                         credentials::delete_auth_code(&old.credential_store, &app_dir, &account.email)?;
-                        Ok::<(), AppError>(())
+                        Ok(())
                     })();
-                    match tauri::async_runtime::block_on(move_one) {
+                    match result {
                         Ok(()) => migrated += 1,
                         Err(_) => failed.push(account.email),
                     }
+                }
+                // 切回 keyring 且全部迁移成功后清除口令;有失败则保留(以便用户处理)
+                if new_mode == CredentialMode::Keyring && failed.is_empty() {
+                    credentials::set_runtime_passphrase(None);
+                    let _ = std::fs::remove_file(app_dir.join("credentials.json"));
                 }
             }
             app_settings::save(&settings_path, &AppSettings { credential_store: new_mode })?;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { App as AntApp, Alert, Button, Descriptions, Modal, Select, Space, Typography } from "antd";
+import { App as AntApp, Alert, Button, Descriptions, Form, Input, Modal, Select, Space, Typography } from "antd";
 import { api } from "../api";
 import { useT } from "../i18n";
 import { ACCENTS, getAccent, useSettingsStore } from "../settings";
@@ -25,6 +25,13 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [credStore, setCredStore] = useState<string | null>(null);
   const [switchingCred, setSwitchingCred] = useState(false);
+  const [credStatus, setCredStatus] = useState<{ exists: boolean; unlocked: boolean } | null>(null);
+  const [passModalOpen, setPassModalOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<string | null>(null);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const refreshCredStatus = () => {
+    api.credFileStatus().then(setCredStatus).catch(() => setCredStatus(null));
+  };
 
   useEffect(() => {
     if (open) {
@@ -32,23 +39,35 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
       setError(null);
       api.appVersion().then(setVersion).catch(() => setVersion(""));
       api.getAppSettings().then((s) => setCredStore(s.credential_store)).catch(() => setCredStore("keyring"));
+      refreshCredStatus();
     }
   }, [open]);
 
-  const handleCredStoreChange = async (mode: string) => {
+  const doSwitch = async (mode: string, passphrase?: string) => {
     setSwitchingCred(true);
     try {
-      const r = await api.setCredentialStore(mode);
+      const r = await api.setCredentialStore(mode, passphrase);
       setCredStore(mode);
       if (r.failed.length > 0) {
         message.warning(t("settings.credMigrateFailed", { n: r.failed.length }));
       } else {
         message.success(t("settings.credSwitched", { n: r.migrated }));
       }
+      refreshCredStatus();
     } catch (e) {
       message.error(String(e));
     } finally {
       setSwitchingCred(false);
+    }
+  };
+
+  const handleCredStoreChange = (mode: string) => {
+    if (mode === "file") {
+      // 切到文件模式:先弹口令设置
+      setPendingMode(mode);
+      setPassModalOpen(true);
+    } else {
+      doSwitch(mode);
     }
   };
 
@@ -139,7 +158,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         {t("settings.security")}
       </Typography.Text>
-      <div style={{ margin: "8px 0 20px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ margin: "8px 0 8px", display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ width: 64, flexShrink: 0 }}>{t("settings.credentialStore")}</span>
         <Select
           value={credStore ?? "keyring"}
@@ -153,7 +172,23 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
         />
       </div>
       {credStore === "file" && (
-        <Alert type="warning" showIcon style={{ marginBottom: 20 }} message={t("settings.credFileWarning")} />
+        <>
+          <Alert type="warning" showIcon style={{ marginBottom: 8 }} message={t("settings.credFileWarning")} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, flex: 1 }}>
+              {credStatus?.unlocked ? t("settings.credUnlocked") : t("settings.credLocked")}
+            </Typography.Text>
+            {credStatus?.unlocked ? (
+              <Button size="small" onClick={async () => { await api.lockCredFile(); refreshCredStatus(); }}>
+                {t("settings.credLock")}
+              </Button>
+            ) : (
+              <Button size="small" type="primary" onClick={() => setUnlockOpen(true)}>
+                {t("settings.credUnlock")}
+              </Button>
+            )}
+          </div>
+        </>
       )}
 
       {/* 版本与更新 */}
@@ -196,6 +231,103 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
         </>
       )}
       {info && !info.available && <Alert type="info" showIcon message={t("settings.upToDate")} />}
+
+      <PassphraseSetupModal
+        open={passModalOpen}
+        onCancel={() => { setPassModalOpen(false); setPendingMode(null); }}
+        onConfirm={async (pass) => {
+          setPassModalOpen(false);
+          await doSwitch(pendingMode ?? "file", pass);
+          setPendingMode(null);
+        }}
+      />
+      <UnlockModal
+        open={unlockOpen}
+        onCancel={() => setUnlockOpen(false)}
+        onUnlocked={() => { setUnlockOpen(false); refreshCredStatus(); }}
+      />
+    </Modal>
+  );
+}
+
+function PassphraseSetupModal(props: { open: boolean; onCancel: () => void; onConfirm: (pass: string) => void }) {
+  const t = useT();
+  const [form] = Form.useForm<{ pass: string; confirm: string }>();
+  return (
+    <Modal
+      title={t("settings.credPassphraseSetup")}
+      open={props.open}
+      onCancel={props.onCancel}
+      onOk={() => form.submit()}
+      okText={t("confirm")}
+      cancelText={t("cancel")}
+      destroyOnClose
+    >
+      <Alert type="warning" showIcon style={{ marginBottom: 16 }} message={t("settings.credFileWarning")} />
+      <Form form={form} layout="vertical" onFinish={(v) => {
+        if (v.pass.length < 6) return;
+        if (v.pass !== v.confirm) return;
+        props.onConfirm(v.pass);
+      }}>
+        <Form.Item
+          name="pass"
+          label={t("settings.credPassphrase")}
+          rules={[
+            { required: true },
+            { min: 6, message: t("settings.credPassphrasePlaceholder") },
+          ]}
+        >
+          <Input.Password placeholder={t("settings.credPassphrasePlaceholder")} />
+        </Form.Item>
+        <Form.Item
+          name="confirm"
+          label={t("settings.credPassphraseConfirm")}
+          dependencies={["pass"]}
+          rules={[
+            { required: true },
+            ({ getFieldValue }) => ({
+              validator: (_, value) =>
+                value === getFieldValue("pass")
+                  ? Promise.resolve()
+                  : Promise.reject(new Error(t("settings.credPassphraseMismatch"))),
+            }),
+          ]}
+        >
+          <Input.Password />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
+function UnlockModal(props: { open: boolean; onCancel: () => void; onUnlocked: () => void }) {
+  const t = useT();
+  const { message } = AntApp.useApp();
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal
+      title={t("settings.credUnlock")}
+      open={props.open}
+      onCancel={props.onCancel}
+      onOk={async () => {
+        setBusy(true);
+        try {
+          await api.unlockCredFile(pass);
+          props.onUnlocked();
+          setPass("");
+        } catch {
+          message.error(t("settings.credUnlockFail"));
+        } finally {
+          setBusy(false);
+        }
+      }}
+      confirmLoading={busy}
+      okText={t("confirm")}
+      cancelText={t("cancel")}
+      destroyOnClose
+    >
+      <Input.Password value={pass} onChange={(e) => setPass(e.target.value)} />
     </Modal>
   );
 }

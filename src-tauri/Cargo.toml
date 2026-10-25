@@ -26,6 +26,8 @@ mail-parser = "0.9"
 base64 = "0.22"
 aes-gcm = "0.10"
 sha2 = "0.10"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+rand = "0.8"
 ammonia = "4"
 keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native"] }
 rusqlite = { version = "0.32", features = ["bundled-sqlcipher", "bundled-sqlcipher-vendored-openssl"] }
@@ -36,3 +38,6 @@ futures = "0.3"
 [profile.dev]
 opt-level = 0
 debug = 1
+
+[dev-dependencies]
+serial_test = "3"

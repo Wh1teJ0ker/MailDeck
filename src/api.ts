@@ -3,6 +3,7 @@ import type {
   AccountDto,
   AppSettingsDto,
   BodyDto,
+  CredFileStatusDto,
   CredentialSwitchResultDto,
   MailboxDto,
   MailboxUnreadDto,
@@ -78,8 +79,18 @@ export const api = {
 
   getAppSettings: () => invoke<AppSettingsDto>("get_app_settings"),
 
-  setCredentialStore: (mode: string) =>
-    invoke<CredentialSwitchResultDto>("set_credential_store", { mode }),
+  setCredentialStore: (mode: string, passphrase?: string) =>
+    invoke<CredentialSwitchResultDto>("set_credential_store", {
+      mode,
+      passphrase: passphrase ?? null,
+    }),
+
+  credFileStatus: () => invoke<CredFileStatusDto>("cred_file_status"),
+
+  unlockCredFile: (passphrase: string) =>
+    invoke<number>("unlock_cred_file", { passphrase }),
+
+  lockCredFile: () => invoke<void>("lock_cred_file"),
 
   // 设置:检查更新与在线更新
   appVersion: () => invoke<string>("app_version"),
