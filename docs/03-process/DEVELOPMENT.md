@@ -48,7 +48,7 @@ pnpm verify   # = 前端 Vitest + 前端构建(tsc+vite) + Rust cargo test
 ## 4. 发布流程
 
 1. ROADMAP 当前版本验收门槛全部通过。
-2. 更新日志定稿：`04-changelog/v<版本号>.md` 补发布日期；随后新建下一开发版本的日志文件，并在 `04-changelog/README.md` 版本目录登记。
+2. 更新日志定稿：`04-changelog/v<版本号>.md` 补发布日期；随后新建下一开发版本的日志文件，并在 `04-changelog/README.md` 版本目录登记。**规定：Release 页面的更新说明必须来自对应版本的更新日志文档**——流水线经 `scripts/release-notes.mjs` 自动注入该文件正文（并附加平台安装提示），日志文件缺失时 Release 构建直接失败；因此打 tag 前必须先定稿日志。
 3. 版本号:**只改 `src-tauri/Cargo.toml` 的 `version`(单一事实源)**,然后执行 `pnpm version:set` 让 package.json 自动跟随;`tauri.conf.json` 不写 version(Tauri 自动取 Cargo 包版本),界面版本号由后端 `app_version` 命令统一提供。`pnpm build` 前置 `version:check`,不一致即失败;Rust 侧另有 version_single_source 测试兜底。
 4. **本地一键校验 `pnpm verify` 全绿**（前端测试 + 前端构建 + Rust 测试）。
 5. 提交后打 tag 并推送：`git tag v<版本号> && git push origin v<版本号>`。
