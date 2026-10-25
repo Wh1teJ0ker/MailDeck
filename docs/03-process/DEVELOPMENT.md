@@ -20,6 +20,7 @@
 - main 始终保持可构建、可运行。
 - **推送远程的硬性前置条件:本地完整测试已完成且 `pnpm verify` 全绿。任何代码或文档变更,未通过本地全量校验前一律不得 `git push`**(文档-only 变更同样执行,校验成本约 1 分钟)。
 - 提交信息使用 Conventional Commits：`feat` / `fix` / `docs` / `refactor` / `test` / `chore`，格式 `类型(范围): 描述`，例如 `feat(sync): UIDVALIDITY 变化时重建索引`。
+- 文案规范：界面文案、文档、提交信息、Release 说明一律不使用 emoji 表情符号（用户明确要求）。
 
 ## 3. 测试策略(本地执行)
 

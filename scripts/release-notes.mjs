@@ -36,11 +36,30 @@ while (i < lines.length) {
 }
 const body = lines.slice(i).join("\n").trim();
 
-const PLATFORM_HINT =
-  "---\n" +
-  "**下载**:按平台选择安装包(macOS .dmg / Windows setup.exe 或 .msi / Linux .deb·AppImage·rpm)。" +
-  "应用内「设置 → 检查更新」可在线升级。\n" +
-  "- Windows 未做代码签名,首次运行 SmartScreen 提示时选「仍要运行」;\n" +
-  "- macOS 未做公证,首次打开需右键 → 打开。";
+// 安装指南:版本号取自 tag,文件名与产物一致;禁止使用 emoji(项目规范)
+const ver = tag.slice(1);
+const B = "`";
+const PLATFORM_HINT = [
+  "---",
+  "",
+  "## 下载与安装",
+  "",
+  "| 平台 | 安装包 | 适用 |",
+  "| --- | --- | --- |",
+  `| macOS · Apple Silicon | ${B}MailDeck_${ver}_aarch64.dmg${B} | M 系列 Mac |`,
+  `| macOS · Intel | ${B}MailDeck_${ver}_x64.dmg${B} | Intel Mac |`,
+  `| Windows · x64 | ${B}MailDeck_${ver}_x64-setup.exe${B}(推荐)或 ${B}MailDeck_${ver}_x64_en-US.msi${B} | Windows 10/11 |`,
+  `| Linux · x64 | ${B}MailDeck_${ver}_amd64.deb${B} / ${B}MailDeck_${ver}_amd64.AppImage${B} / ${B}rpm${B} | Debian 系 / 通用 / RHEL 系 |`,
+  "",
+  "**已安装旧版本?** 无需重新下载——打开应用,「设置 → 检查更新」即可在线升级到本版本。",
+  "",
+  "**首次运行提示**(当前版本未购买代码签名证书,系统提示属正常现象,仅首次出现):",
+  "",
+  "- **macOS**:双击 dmg 安装后,首次打开请**右键点击应用 → 打开 → 再点「打开」**;若仍被拦,到「系统设置 → 隐私与安全性」底部点「仍要打开」。",
+  "- **Windows**:SmartScreen 弹窗时点**「更多信息」→「仍要运行」**;" + B + ".msi" + B + " 与 " + B + ".exe" + B + " 二选一即可。",
+  "- **Linux**:AppImage 需先赋予执行权限(" + B + "chmod +x MailDeck_*.AppImage" + B + ")再运行;deb/rpm 用对应包管理器安装。",
+  "",
+  "**首次使用**:添加邮箱前,请先在邮箱网页版开启 IMAP 服务并生成授权码——QQ 邮箱在「设置 → 账户」,163 邮箱在「设置 → POP3/SMTP/IMAP」;应用内填入的是**授权码**(不是邮箱密码)。数据(账号配置、邮件缓存)全部保存在本机,数据库整库加密。",
+].join("\n");
 
 console.log(`${body}\n\n${PLATFORM_HINT}`);
