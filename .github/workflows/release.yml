@@ -51,6 +51,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Release notes from changelog (required)
+        shell: bash
         run: |
           body="$(node scripts/release-notes.mjs "${{ github.ref_name }}")"
           {
