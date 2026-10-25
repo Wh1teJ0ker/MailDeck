@@ -65,6 +65,12 @@ export default function AccountSidebar() {
   const { mailboxId, unreadOnly, setMailbox, setUnreadOnly } = useUiStore();
 
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: api.listAccounts });
+  // 版本号单一事实源:Cargo.toml → 后端 app_version,界面不做硬编码
+  const { data: appVersion = "" } = useQuery({
+    queryKey: ["app-version"],
+    queryFn: api.appVersion,
+    staleTime: Infinity,
+  });
   const { data: mailboxesByAccount } = useQuery({
     queryKey: ["mailboxes", accounts.map((a) => a.id).join(",")],
     queryFn: async () => {
@@ -220,7 +226,7 @@ export default function AccountSidebar() {
             MailDeck
           </Typography.Text>
           <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-            {t("brand.slogan")} · v0.1.0
+            {appVersion ? `${t("brand.slogan")} · v${appVersion}` : t("brand.slogan")}
           </Typography.Text>
         </div>
       </div>

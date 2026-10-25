@@ -49,7 +49,7 @@ pnpm verify   # = 前端 Vitest + 前端构建(tsc+vite) + Rust cargo test
 
 1. ROADMAP 当前版本验收门槛全部通过。
 2. 更新日志定稿：`04-changelog/v<版本号>.md` 补发布日期；随后新建下一开发版本的日志文件，并在 `04-changelog/README.md` 版本目录登记。
-3. 版本号同步三处并保持一致：`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`、`package.json`。
+3. 版本号:**只改 `src-tauri/Cargo.toml` 的 `version`(单一事实源)**,然后执行 `pnpm version:set` 让 package.json 自动跟随;`tauri.conf.json` 不写 version(Tauri 自动取 Cargo 包版本),界面版本号由后端 `app_version` 命令统一提供。`pnpm build` 前置 `version:check`,不一致即失败;Rust 侧另有 version_single_source 测试兜底。
 4. **本地一键校验 `pnpm verify` 全绿**（前端测试 + 前端构建 + Rust 测试）。
 5. 提交后打 tag 并推送：`git tag v<版本号> && git push origin v<版本号>`。
 6. GitHub Actions「Release」流水线自动构建 macOS（Apple Silicon / Intel）dmg，创建 GitHub Release 并附安装包与 `latest.json` 在线更新源（签名私钥存于仓库 Secrets `TAURI_SIGNING_PRIVATE_KEY`）。
