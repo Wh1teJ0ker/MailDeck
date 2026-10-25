@@ -15,6 +15,7 @@ export interface ProviderDto {
   auth_mode: string;
   available: boolean;
   hint: string;
+  suffix: string;
 }
 
 export interface AppSettingsDto {

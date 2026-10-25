@@ -68,7 +68,10 @@ export default {
 
   // 添加账号
   "add.title": "添加邮箱账号",
-  "add.type": "邮箱类型",
+  "add.type": "选择邮箱服务商",
+  "add.emailSuffix": "@{suffix}",
+  "add.emailFullRequired": "该邮箱地址为企业域名,请输入完整邮箱地址",
+  "add.passwordLabel": "{auth}",
   "add.email": "邮箱地址",
   "add.authCode": "授权码",
   "add.authCodeExtra": "只保存在系统钥匙串中,不会写入普通文件或日志",
@@ -91,6 +94,7 @@ export default {
   "settings.gmailClientIdPlaceholder": "xxxxxxxx.apps.googleusercontent.com",
   "settings.gmailClientIdSaved": "Google 客户端 ID 已保存",
   "add.ok": "验证并添加",
+  "add.submitting": "正在验证与同步...",
   "add.comingSoon": "「{name}」采用 {auth} 认证,正在适配中;当前版本请先选择 QQ 邮箱。",
   "add.emailRequired": "请输入邮箱地址",
   "add.emailInvalid": "邮箱格式不正确",
