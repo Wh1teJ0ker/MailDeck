@@ -32,8 +32,21 @@ fn read_file_map_with(
     let text = std::fs::read_to_string(file_path(app_dir))?;
     let wrapper: serde_json::Value = serde_json::from_str(&text)
         .map_err(|e| crate::error::err(format!("凭证文件损坏:{e}")))?;
+    let data = wrapper
+        .get("data")
+        .and_then(|v| v.as_str())
+        .ok_or_bad()?;
+
+    // v1(口令功能前):机器绑定 AES-GCM,无 salt/verifier;保持兼容读取
+    if wrapper.get("salt").is_none() {
+        let plain = crate::crypto::decrypt_b64(&data)
+            .ok_or_else(|| crate::error::err("凭证文件解密失败(可能来自其他机器)"))?;
+        return serde_json::from_slice(&plain)
+            .map_err(|e| crate::error::err(format!("凭证文件损坏:{e}")));
+    }
+
+    // v2:口令派生密钥(盐 + 验证块)
     let salt_hex = wrapper.get("salt").and_then(|v| v.as_str()).ok_or_bad()?;
-    let data = wrapper.get("data").and_then(|v| v.as_str()).ok_or_bad()?;
     let verifier = wrapper.get("verifier").and_then(|v| v.as_str()).ok_or_bad()?;
     let pass = passphrase
         .ok_or_else(|| crate::error::err("凭证文件已启用口令保护,请先在设置中输入口令解锁"))?;

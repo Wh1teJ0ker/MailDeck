@@ -87,6 +87,35 @@ fn file_mode_requires_correct_passphrase() {
 }
 
 #[test]
+fn v1_machine_bound_file_still_readable() {
+    // v1(口令功能前)格式:{"v":1,"data":<机器绑定 AES-GCM base64>}
+    // 新代码必须兼容读取,不能报"缺少必要字段"
+    let dir = std::env::temp_dir().join(format!("maildeck-creds-v1-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    credentials::set_runtime_passphrase(None);
+
+    let map = serde_json::json!({ "old@qq.com": "code-old", "legacy@163.com": "code-163" });
+    let plain = serde_json::to_string(&map).unwrap();
+    let wrapper = serde_json::json!({
+        "v": 1,
+        "data": maildeck_lib::crypto::encrypt_b64(plain.as_bytes()),
+    });
+    std::fs::write(dir.join("credentials.json"), serde_json::to_string_pretty(&wrapper).unwrap()).unwrap();
+
+    // 无口令也可读(v1 是机器绑定加密)
+    let mode = CredentialMode::File;
+    assert_eq!(
+        credentials::load_auth_code(&mode, &dir, "old@qq.com").unwrap(),
+        "code-old"
+    );
+    assert_eq!(
+        credentials::load_auth_code(&mode, &dir, "legacy@163.com").unwrap(),
+        "code-163"
+    );
+}
+
+#[test]
 #[ignore = "写入真实系统钥匙串,手动执行"]
 fn keyring_mode_roundtrip_and_delete() {
     let mode = CredentialMode::Keyring;
