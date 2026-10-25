@@ -421,7 +421,7 @@ export default function SettingsPage({ onClose }: SettingsPageProps) {
           style={{ flex: 1 }}
           allowClear
         />
-        <Button loading={savingGmailId} onClick={handleSaveGmailId} disabled={!gmailId.trim()}>
+        <Button loading={savingGmailId} onClick={handleSaveGmailId} disabled={!gmailId || !gmailId.trim()}>
           {t("btn.save")}
         </Button>
       </div>
