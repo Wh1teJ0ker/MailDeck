@@ -336,6 +336,8 @@ pub async fn unread_counts(state: State<'_, AppState>) -> AppResult<Vec<store::M
 #[derive(Debug, serde::Serialize)]
 pub struct AppSettingsDto {
     pub credential_store: String,
+    pub background: String,
+    pub glass_tone: String,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -380,7 +382,69 @@ pub fn lock_cred_file() {
 pub fn get_app_settings(state: State<'_, AppState>) -> AppSettingsDto {
     let settings_path = state.app_dir.join("settings.json");
     let s = app_settings::load(&settings_path);
-    AppSettingsDto { credential_store: s.credential_store.as_str().to_string() }
+    AppSettingsDto {
+        credential_store: s.credential_store.as_str().to_string(),
+        background: s.background.clone(),
+        glass_tone: s.glass_tone.clone(),
+    }
+}
+
+/// 切换内置背景(或 custom:要求已上传过)。
+#[tauri::command]
+pub fn set_background(state: State<'_, AppState>, mode: String) -> AppResult<()> {
+    if !app_settings::valid_background(&mode) {
+        return Err(err(format!("未知背景模式:{mode}")));
+    }
+    if mode == "custom" && !state.app_dir.join("background.img").exists() {
+        return Err(err("尚未上传自定义背景图片"));
+    }
+    let settings_path = state.app_dir.join("settings.json");
+    let mut s = app_settings::load(&settings_path);
+    s.background = mode;
+    app_settings::save(&settings_path, &s)?;
+    Ok(())
+}
+
+/// 上传自定义背景图片(jpg/png,≤10MB),写入应用数据目录。
+#[tauri::command]
+pub fn upload_background(state: State<'_, AppState>, data: Vec<u8>) -> AppResult<()> {
+    if data.len() > 10 * 1024 * 1024 {
+        return Err(err("图片超过 10MB,请压缩后重试"));
+    }
+    // 魔数校验:jpg(ff d8)或 png(89 50 4e 47)
+    let ok = data.starts_with(&[0xff, 0xd8]) || data.starts_with(&[0x89, 0x50, 0x4e, 0x47]);
+    if !ok {
+        return Err(err("仅支持 JPG / PNG 图片"));
+    }
+    std::fs::write(state.app_dir.join("background.img"), &data)?;
+    let settings_path = state.app_dir.join("settings.json");
+    let mut s = app_settings::load(&settings_path);
+    s.background = "custom".into();
+    app_settings::save(&settings_path, &s)?;
+    Ok(())
+}
+
+/// 切换玻璃色调(dark/light),与背景解耦。
+#[tauri::command]
+pub fn set_glass_tone(state: State<'_, AppState>, tone: String) -> AppResult<()> {
+    if !app_settings::valid_glass_tone(&tone) {
+        return Err(err(format!("未知玻璃色调:{tone}")));
+    }
+    let settings_path = state.app_dir.join("settings.json");
+    let mut s = app_settings::load(&settings_path);
+    s.glass_tone = tone;
+    app_settings::save(&settings_path, &s)?;
+    Ok(())
+}
+
+/// 读取自定义背景图片字节(前端转 data URL)。
+#[tauri::command]
+pub fn read_custom_background(state: State<'_, AppState>) -> AppResult<Option<Vec<u8>>> {
+    let p = state.app_dir.join("background.img");
+    if !p.exists() {
+        return Ok(None);
+    }
+    Ok(Some(std::fs::read(&p)?))
 }
 
 /// 切换凭证存储方式,并把所有已有账号的授权码迁移到新模式。
@@ -434,7 +498,9 @@ pub async fn set_credential_store(
                     let _ = std::fs::remove_file(app_dir.join("credentials.json"));
                 }
             }
-            app_settings::save(&settings_path, &AppSettings { credential_store: new_mode })?;
+            let mut persisted = app_settings::load(&settings_path);
+            persisted.credential_store = new_mode;
+            app_settings::save(&settings_path, &persisted)?;
             Ok(CredentialSwitchResultDto { migrated, failed })
         })
     })

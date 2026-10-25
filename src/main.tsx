@@ -25,15 +25,14 @@ function ThemedApp() {
     root.style.setProperty("--md-gradient-hover", `linear-gradient(135deg, ${a.from} 0%, ${a.to} 60%)`);
     root.style.setProperty("--md-primary", a.primary);
     root.style.setProperty("--md-glow", "0 6px 20px rgba(0,0,0,0.35)");
-    root.style.setProperty("--md-base", a.bg);
-    root.style.setProperty("--md-ambient", a.ambient);
-    root.style.setProperty("--md-glass", a.glass);
-    root.style.setProperty("--md-glass-strong", a.glassStrong);
+    // 参考配方:轻玻璃 blur(10px)+saturate(1.25),质感由背后氛围画提供
+    root.style.setProperty("--md-panel", a.panel);
+    root.style.setProperty("--md-panel-strong", a.panelStrong);
     root.style.setProperty("--md-stroke", a.stroke);
-    // 玻璃配方:强模糊 + 饱和度提升(透过玻璃的色彩更浓),内外双层光
-    root.style.setProperty("--md-backdrop", "blur(42px) saturate(165%)");
-    root.style.setProperty("--md-inner-hi", "inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(255,255,255,0.03)");
-    root.style.setProperty("--md-shadow", "0 1px 0 rgba(255,255,255,0.05) inset, 0 14px 40px rgba(0,0,0,0.38)");
+    root.style.setProperty("--md-backdrop", "blur(10px) saturate(1.25)");
+    root.style.setProperty("--md-text", a.text);
+    root.style.setProperty("--md-text-sub", a.textSub);
+    root.style.setProperty("--md-shadow", "0 18px 50px rgba(6,18,40,0.45)");
     root.style.setProperty("--md-text", a.dark ? "#e9ebee" : "#262b31");
     root.style.setProperty("--md-text-sub", a.dark ? "#9aa3ad" : "#717a85");
   }, [accentId]);
@@ -49,10 +48,10 @@ function ThemedApp() {
           colorPrimary: a.primary,
           borderRadius: 10,
           colorBgLayout: "transparent",
-          colorBgContainer: a.dark ? "rgba(30,36,46,0.66)" : "rgba(255,255,255,0.72)",
-          colorBgElevated: a.dark ? "rgba(26,31,39,0.86)" : "rgba(255,255,255,0.9)",
-          colorText: a.dark ? "#e9ebee" : "#262b31",
-          colorTextSecondary: a.dark ? "#9aa3ad" : "#717a85",
+          colorBgContainer: a.dark ? "rgba(16,32,60,0.5)" : "rgba(255,255,255,0.6)",
+          colorBgElevated: a.dark ? "rgba(14,30,55,0.88)" : "rgba(255,255,255,0.94)",
+          colorText: a.text,
+          colorTextSecondary: a.textSub,
           fontSize: 13,
         },
       }}

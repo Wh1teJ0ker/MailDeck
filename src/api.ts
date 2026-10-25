@@ -79,6 +79,14 @@ export const api = {
 
   getAppSettings: () => invoke<AppSettingsDto>("get_app_settings"),
 
+  setBackground: (mode: string) => invoke<void>("set_background", { mode }),
+
+  uploadBackground: (data: number[]) => invoke<void>("upload_background", { data }),
+
+  setGlassTone: (tone: string) => invoke<void>("set_glass_tone", { tone }),
+
+  readCustomBackground: () => invoke<number[] | null>("read_custom_background"),
+
   setCredentialStore: (mode: string, passphrase?: string) =>
     invoke<CredentialSwitchResultDto>("set_credential_store", {
       mode,

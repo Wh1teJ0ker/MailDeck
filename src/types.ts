@@ -19,6 +19,8 @@ export interface ProviderDto {
 
 export interface AppSettingsDto {
   credential_store: string;
+  background: string;
+  glass_tone: string;
 }
 
 export interface CredFileStatusDto {

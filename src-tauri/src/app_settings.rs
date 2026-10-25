@@ -31,11 +31,24 @@ impl CredentialMode {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
     pub credential_store: CredentialMode,
+    /// 背景模式:内置 rain / mist,或 custom(自定义图片)
+    #[serde(default = "default_background")]
+    pub background: String,
+    /// 玻璃色调:dark / light(与背景解耦,自定义图片时也适用)
+    #[serde(default = "default_glass_tone")]
+    pub glass_tone: String,
 }
+
+fn default_background() -> String { "rain".into() }
+fn default_glass_tone() -> String { "dark".into() }
 
 impl Default for AppSettings {
     fn default() -> Self {
-        AppSettings { credential_store: CredentialMode::Keyring }
+        AppSettings {
+            credential_store: CredentialMode::Keyring,
+            background: default_background(),
+            glass_tone: default_glass_tone(),
+        }
     }
 }
 
@@ -57,6 +70,16 @@ pub fn save(path: &Path, settings: &AppSettings) -> AppResult<()> {
 /// 当前凭证存储模式(便捷入口)。
 pub fn credential_mode(path: &Path) -> CredentialMode {
     load(path).credential_store
+}
+
+/// 校验背景模式取值。
+pub fn valid_background(s: &str) -> bool {
+    matches!(s, "rain" | "mist" | "custom")
+}
+
+/// 校验玻璃色调取值。
+pub fn valid_glass_tone(s: &str) -> bool {
+    matches!(s, "dark" | "light")
 }
 
 /// 凭证上下文:模式 + 本地文件目录,随调用链透传。

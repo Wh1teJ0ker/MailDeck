@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { App as AntApp, Alert, Button, Descriptions, Form, Input, Modal, Select, Space, Typography } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { App as AntApp, Alert, Button, Descriptions, Form, Input, Modal, Radio, Select, Space, Typography } from "antd";
 import { api } from "../api";
 import { useT } from "../i18n";
 import { ACCENTS, getAccent, useSettingsStore } from "../settings";
@@ -25,7 +25,11 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [credStore, setCredStore] = useState<string | null>(null);
   const [switchingCred, setSwitchingCred] = useState(false);
+  const [background, setBackground] = useState<string>("rain");
+  const [glassTone, setGlassTone] = useState<string>("dark");
+  const [hasCustomBg, setHasCustomBg] = useState(false);
   const [credStatus, setCredStatus] = useState<{ exists: boolean; unlocked: boolean } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [passModalOpen, setPassModalOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<string | null>(null);
   const [unlockOpen, setUnlockOpen] = useState(false);
@@ -38,7 +42,15 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
       setInfo(null);
       setError(null);
       api.appVersion().then(setVersion).catch(() => setVersion(""));
-      api.getAppSettings().then((s) => setCredStore(s.credential_store)).catch(() => setCredStore("keyring"));
+      api
+        .getAppSettings()
+        .then((s) => {
+          setCredStore(s.credential_store);
+          setBackground(s.background);
+          setGlassTone(s.glass_tone);
+          setHasCustomBg(s.background === "custom");
+        })
+        .catch(() => undefined);
       refreshCredStatus();
     }
   }, [open]);
@@ -68,6 +80,38 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
       setPassModalOpen(true);
     } else {
       doSwitch(mode);
+    }
+  };
+
+  const applyBackground = async (mode: string) => {
+    try {
+      await api.setBackground(mode);
+      setBackground(mode);
+    } catch (e) {
+      message.error(String(e));
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    try {
+      await api.uploadBackground(Array.from(buf));
+      setHasCustomBg(true);
+      setBackground("custom");
+      message.success(t("settings.bgUploaded"));
+      window.dispatchEvent(new CustomEvent("maildeck:background-changed"));
+    } catch (e) {
+      message.error(String(e));
+    }
+  };
+
+  const handleGlassTone = async (tone: string) => {
+    try {
+      await api.setGlassTone(tone);
+      setGlassTone(tone);
+      window.dispatchEvent(new CustomEvent("maildeck:background-changed"));
+    } catch (e) {
+      message.error(String(e));
     }
   };
 
@@ -153,6 +197,68 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           </Typography.Text>
         </div>
       </div>
+
+      {/* 背景:内置氛围画 / 自定义图片 */}
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        {t("settings.background")}
+      </Typography.Text>
+      <div style={{ margin: "8px 0 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        <Space size={8} wrap>
+          {[
+            { id: "rain", label: t("settings.bgRain") },
+            { id: "mist", label: t("settings.bgMist") },
+            { id: "custom", label: t("settings.bgCustom") },
+          ].map((b) => {
+            const active = background === b.id;
+            return (
+              <Button
+                key={b.id}
+                onClick={() => (b.id === "custom" && !hasCustomBg ? fileRef.current?.click() : applyBackground(b.id))}
+                type={active ? "primary" : "default"}
+                ghost={active}
+                size="small"
+              >
+                {b.label}
+                {b.id === "custom" && hasCustomBg ? " ✓" : ""}
+              </Button>
+            );
+          })}
+          <Button size="small" onClick={() => fileRef.current?.click()}>
+            {t("settings.bgUpload")}
+          </Button>
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+            {t("settings.bgUploadTip")}
+          </Typography.Text>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleUpload(f);
+              e.target.value = "";
+            }}
+          />
+        </Space>
+      </div>
+
+      {/* 玻璃色调:自定义图片时可选深/浅 */}
+      {background === "custom" && (
+        <div style={{ margin: "0 0 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ width: 64, flexShrink: 0, fontSize: 12 }}>{t("settings.bgGlassTone")}</span>
+          <Radio.Group
+            size="small"
+            value={glassTone}
+            onChange={(e) => handleGlassTone(e.target.value)}
+            options={[
+              { label: t("settings.toneDark"), value: "dark" },
+              { label: t("settings.toneLight"), value: "light" },
+            ]}
+            optionType="button"
+          />
+        </div>
+      )}
 
       {/* 安全:凭证存储方式 */}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>

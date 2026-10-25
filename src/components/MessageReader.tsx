@@ -87,12 +87,12 @@ export default function MessageReader() {
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
-        background: "var(--md-glass-strong)",
+        background: "var(--md-panel-strong)",
         backdropFilter: "var(--md-backdrop)",
         WebkitBackdropFilter: "var(--md-backdrop)",
         border: "1px solid var(--md-stroke)",
-        boxShadow: "var(--md-inner-hi), var(--md-shadow)",
-        borderRadius: 14,
+        boxShadow: "var(--md-shadow)",
+        borderRadius: 18,
         overflow: "hidden",
       }}
     >
@@ -240,9 +240,9 @@ function ReaderCard({ children }: { children: React.ReactNode }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--md-glass)",
+        background: "var(--md-panel)",
         border: "1px solid var(--md-stroke)",
-        borderRadius: 14,
+        borderRadius: 18,
         backdropFilter: "var(--md-backdrop)",
       }}
     >
